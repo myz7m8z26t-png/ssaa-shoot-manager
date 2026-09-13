@@ -150,6 +150,18 @@ td{color:#eef5fa}
 .nav-card h3{margin:0 0 6px}
 .nav-card p{margin:0;color:#9fb2c1}
 
+/* BENCH DRAW */
+.draw-hero{display:grid;grid-template-columns:1.2fr .8fr;gap:16px}
+.draw-number{font-size:32px;font-weight:900}
+.draw-detail-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:12px}
+.draw-detail{padding:14px;border:1px solid #2b4a60;border-radius:14px;background:#0a1d2a}
+.draw-detail h3{display:flex;justify-content:space-between;gap:8px;align-items:center;margin:0 0 10px}
+.draw-list{display:grid;gap:7px}
+.draw-row{display:grid;grid-template-columns:58px 1fr auto;gap:8px;align-items:center;padding:8px 9px;border-radius:10px;background:#0d2636;border:1px solid #29475c}
+.draw-bench{font-size:18px;font-weight:900;color:#fff;text-align:center}
+.unassigned{color:#ffd21a;font-weight:800}
+@media(max-width:700px){.draw-hero{grid-template-columns:1fr}}
+
 /* SETTINGS */
 .settings-grid{display:grid;grid-template-columns:2fr 1fr;gap:16px}
 
@@ -187,6 +199,7 @@ td{color:#eef5fa}
     <button data-tab="home"><span class="ico">⌂</span><span>Home</span></button>
     <button data-tab="details"><span class="ico">▤</span><span>Details</span></button>
     <button data-tab="shooters"><span class="ico">👥</span><span>Shooters</span></button>
+    <button data-tab="benchdraw"><span class="ico">🎲</span><span>Bench Draw</span></button>
     <button data-tab="score"><span class="ico">◎</span><span>Score</span></button>
     <button data-tab="group"><span class="ico">◌</span><span>Group</span></button>
     <button data-tab="irb"><span class="ico">◉</span><span>IRB</span></button>
@@ -212,7 +225,7 @@ td{color:#eef5fa}
       <div class="qico">▣</div><h3>Create Shoot</h3><p>New match starts with no shooters</p>
     </button>
     <button class="quick" onclick="go('shooters')">
-      <div class="qico">👥</div><h3>Manage Shooters</h3><p>Add or edit shooters</p>
+      <div class="qico">👥</div><h3>Manage Shooters</h3><p>Add shooters, then run the bench draw</p>
     </button>
     <button class="quick" onclick="go('score')">
       <div class="qico">◎</div><h3>Enter Scores</h3><p>Rimfire, Centrefire, Group & IRB</p>
@@ -254,16 +267,49 @@ td{color:#eef5fa}
 
 <section id="shooters" class="tab hidden">
   <div class="card section-card">
-    <h2>Add Shooter</h2>
+    <h2>Add Shooter</h2><p class="muted">For a random bench draw, leave the shooter in <b>Bench Draw Pool (unassigned)</b>. Add everyone first, then run the draw.</p>
     <div class="grid">
       <div><label>Name</label><input id="sName" placeholder="Shooter name"></div>
-      <div><label>Detail</label><select id="sDetail"></select></div>
-      <div><label>Bench Number</label><input id="sBench" type="number" min="1" placeholder="Auto if blank"></div>
+      <div><label>Assignment</label><select id="sDetail"></select></div>
+      <div><label>Bench Number</label><input id="sBench" type="number" min="1" placeholder="Leave blank for bench draw"></div>
       <div><label>Category</label><select id="sCategory"></select></div>
     </div>
-    <div class="actions"><button class="btn-primary" onclick="addShooter()">＋ Add Shooter</button></div>
+    <div class="actions"><button class="btn-primary" onclick="addShooter()">＋ Add Shooter</button><button class="btn-secondary" onclick="go('benchdraw')">🎲 Go to Bench Draw</button></div>
   </div>
   <div class="card section-card"><h2>All Shooters</h2><div id="shooterTable"></div></div>
+</section>
+
+
+<section id="benchdraw" class="tab hidden">
+  <div class="draw-hero">
+    <div class="card section-card">
+      <h2>🎲 Bench Draw</h2>
+      <p class="muted">Choose how many benches are available in each detail. Add all shooters first, then the app randomly assigns unique bench numbers. Detail 1 is filled first, then Detail 2, Detail 3 and so on.</p>
+      <div class="grid">
+        <div>
+          <label>Benches available per detail</label>
+          <input id="benchCount" type="number" min="1" max="100" inputmode="numeric" value="10" onchange="saveBenchCount(this.value)">
+        </div>
+      </div>
+      <div class="actions">
+        <button class="btn-secondary" onclick="go('shooters')">＋ Add Shooters</button>
+        <button class="btn-primary" onclick="runBenchDraw()">🎲 Run Bench Draw</button>
+        <button class="btn-secondary" onclick="clearBenchDraw()">Clear Draw</button>
+      </div>
+      <div class="rulebox" style="margin-top:12px">
+        Running the draw reassigns <b>all shooters in the current match</b>. Each detail gets benches 1 to the number you choose, with no duplicate bench number inside a detail. If the last detail is not full, it simply contains the remaining shooters.
+      </div>
+    </div>
+    <div class="card section-card">
+      <h3>Draw Summary</h3>
+      <div class="grid">
+        <div><div class="draw-number" id="drawShooterCount">0</div><div class="muted">Shooters</div></div>
+        <div><div class="draw-number" id="drawBenchCount">0</div><div class="muted">Benches / detail</div></div>
+        <div><div class="draw-number" id="drawDetailCount">0</div><div class="muted">Details needed</div></div>
+      </div>
+    </div>
+  </div>
+  <div id="benchDrawResult"></div>
 </section>
 
 <section id="score" class="tab hidden">
@@ -367,15 +413,15 @@ const GROUP_CLASSES={
   Centrefire:["Sporter Benchrest","Light Benchrest","Heavy Benchrest","Experimental / Unlimited Benchrest"]
 };
 const GROUP_DISTANCES={Rimfire:["50 metres","100 yards"],Centrefire:["100 yards","200 yards","300 yards"]};
-const STORAGE="narrabriSSAA_dark_v8";
-const OLD_KEYS=["narrabriSSAA_dark_v7","narrabriSSAA_dark_v6","narrabriSSAA_rulebook_v5","narrabriSSAA_v4","narrabriSSAA_v3","narrabriSSAA"];
+const STORAGE="narrabriSSAA_dark_v9";
+const OLD_KEYS=["narrabriSSAA_dark_v8","narrabriSSAA_dark_v7","narrabriSSAA_dark_v6","narrabriSSAA_rulebook_v5","narrabriSSAA_v4","narrabriSSAA_v3","narrabriSSAA"];
 const $=id=>document.getElementById(id);
 
-function freshDB(clubName="Narrabri"){return {club:clubName||"Narrabri",shootName:"Narrabri Club Shoot",date:"",details:[],shooters:[],score:{},group:{},irb:{},irbTargets:3}}
+function freshDB(clubName="Narrabri"){return {club:clubName||"Narrabri",shootName:"Narrabri Club Shoot",date:"",details:[],shooters:[],score:{},group:{},irb:{},irbTargets:3,benchCount:10}}
 function normalize(x){
   x.club=x.club||"Narrabri";x.shootName=x.shootName||"Narrabri Club Shoot";x.date=x.date||"";
   x.details=Array.isArray(x.details)?x.details:[];x.shooters=Array.isArray(x.shooters)?x.shooters:[];x.shooters=x.shooters.map(s=>({...s,category:CATEGORIES.includes(s.category)?s.category:"Custom"}));
-  x.score=x.score||{};x.group=x.group||{};x.irb=x.irb||{};x.irbTargets=Number(x.irbTargets)===6?6:3;return x
+  x.score=x.score||{};x.group=x.group||{};x.irb=x.irb||{};x.irbTargets=Number(x.irbTargets)===6?6:3;x.benchCount=Math.max(1,Number(x.benchCount)||10);return x
 }
 function loadDB(){
   try{let x=JSON.parse(localStorage.getItem(STORAGE)||"null");if(x)return normalize(x)}catch(e){}
@@ -394,15 +440,15 @@ let db=loadDB();
 
 function save(){localStorage.setItem(STORAGE,JSON.stringify(db));updateStats();renderRecent()}
 function esc(s){return String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]))}
-function detailName(id){return db.details.find(d=>d.id===id)?.name||"Unknown"}
+function detailName(id){if(id==="unassigned"||!id)return "Bench Draw Pool";return db.details.find(d=>d.id===id)?.name||"Unknown"}
 function setOpts(id,vals){let e=$(id),old=e.value;e.innerHTML=vals.map(v=>`<option>${esc(v)}</option>`).join("");e.value=vals.includes(old)?old:(vals[0]||"")}
 function setDetails(id){let e=$(id),old=e.value,opts=db.details.map(d=>`<option value="${d.id}">${esc(d.name)}</option>`).join("");e.innerHTML='<option value="all">All Details</option>'+opts;e.value=[...e.options].some(o=>o.value===old)?old:"all"}
 
 function saveSetup(){db.club=$("club").value.trim()||"Narrabri";db.shootName=$("shootName").value.trim()||"Narrabri Club Shoot";db.date=$("date").value;save();alert("Shoot saved.")}
 function newShoot(){
-  const clubToKeep=db.club||"Narrabri";
+  const clubToKeep=db.club||"Narrabri"; const benchCountToKeep=Math.max(1,Number(db.benchCount)||10);
   if(!confirm("Start a new match? This will remove ALL shooters, details, bench numbers, scores, group results and IRB cards from the current match."))return;
-  db=freshDB(clubToKeep);
+  db=freshDB(clubToKeep); db.benchCount=benchCountToKeep;
   localStorage.setItem(STORAGE,JSON.stringify(db));
   renderAll();
   go("settings");
@@ -413,14 +459,103 @@ function newShoot(){
 function addDetail(){let name=$("newDetailName").value.trim()||`Detail ${db.details.length+1}`;db.details.push({id:crypto.randomUUID(),name});$("newDetailName").value="";save();renderAll()}
 function deleteDetail(id){if(db.shooters.some(s=>s.detailId===id))return alert("Remove or move shooters from this detail first.");db.details=db.details.filter(d=>d.id!==id);save();renderAll()}
 function nextBench(detailId){let used=db.shooters.filter(s=>s.detailId===detailId).map(s=>Number(s.bench)),n=1;while(used.includes(n))n++;return n}
-function addShooter(){let name=$("sName").value.trim(),detailId=$("sDetail").value,bench=Number($("sBench").value),category=$("sCategory").value||"Custom";if(!name||!detailId)return alert("Enter a name and choose a detail.");if(!bench)bench=nextBench(detailId);if(db.shooters.some(s=>s.detailId===detailId&&Number(s.bench)===bench))return alert("That bench is already used in this detail.");db.shooters.push({id:crypto.randomUUID(),name,detailId,bench,category});$("sName").value="";$("sBench").value="";save();renderAll()}
+function addShooter(){
+  let name=$("sName").value.trim(),detailId=$("sDetail").value||"unassigned",bench=Number($("sBench").value),category=$("sCategory").value||"Custom";
+  if(!name)return alert("Enter a shooter name.");
+  if(detailId==="unassigned"){
+    bench=0;
+  }else{
+    if(!bench)bench=nextBench(detailId);
+    if(db.shooters.some(s=>s.detailId===detailId&&Number(s.bench)===bench))return alert("That bench is already used in this detail.");
+  }
+  db.shooters.push({id:crypto.randomUUID(),name,detailId,bench,category});
+  $("sName").value="";$("sBench").value="";save();renderAll()
+}
 function removeShooter(id){if(!confirm("Remove this shooter?"))return;db.shooters=db.shooters.filter(s=>s.id!==id);Object.keys(db.score).filter(k=>k.endsWith("||"+id)).forEach(k=>delete db.score[k]);Object.keys(db.group).filter(k=>k.endsWith("||"+id)).forEach(k=>delete db.group[k]);delete db.irb[id];save();renderAll()}
 function updateShooterCategory(id,category){let s=db.shooters.find(x=>x.id===id);if(!s)return;s.category=category;save();renderAll()}
 function renderDetails(){
   $("detailPill").textContent=`${db.details.length} Detail${db.details.length===1?"":"s"}`;
   $("detailList").innerHTML=db.details.length?db.details.map(d=>{let ss=db.shooters.filter(s=>s.detailId===d.id).sort((a,b)=>a.bench-b.bench);return `<div class="card section-card"><div class="detail-head"><div><h3>${esc(d.name)}</h3><span class="pill">${ss.length} shooter${ss.length===1?"":"s"}</span></div><button class="btn-danger" onclick="deleteDetail('${d.id}')">Delete</button></div><div class="tablewrap"><table><thead><tr><th>Bench</th><th>Shooter</th><th>Category</th><th></th></tr></thead><tbody>${ss.map(s=>`<tr><td class="bench">${s.bench}</td><td>${esc(s.name)}</td><td>${esc(s.category||"Custom")}</td><td><button class="btn-secondary" onclick="removeShooter('${s.id}')">Remove</button></td></tr>`).join("")||'<tr><td colspan="4" class="empty">No shooters.</td></tr>'}</tbody></table></div></div>`}).join(""):'<div class="card section-card empty">No details yet.</div>'
 }
-function renderShooters(){$("shooterTable").innerHTML=db.shooters.length?`<div class="tablewrap"><table><thead><tr><th>Detail</th><th>Bench</th><th>Name</th><th>Category</th><th></th></tr></thead><tbody>${db.shooters.slice().sort((a,b)=>detailName(a.detailId).localeCompare(detailName(b.detailId))||a.bench-b.bench).map(s=>`<tr><td>${esc(detailName(s.detailId))}</td><td class="bench">${s.bench}</td><td>${esc(s.name)}</td><td><select onchange="updateShooterCategory('${s.id}',this.value)">${CATEGORIES.map(c=>`<option ${c===(s.category||"Custom")?"selected":""}>${c}</option>`).join("")}</select></td><td><button class="btn-danger" onclick="removeShooter('${s.id}')">Remove</button></td></tr>`).join("")}</tbody></table></div>`:'<div class="empty">No shooters yet.</div>'}
+function renderShooters(){$("shooterTable").innerHTML=db.shooters.length?`<div class="tablewrap"><table><thead><tr><th>Detail</th><th>Bench</th><th>Name</th><th>Category</th><th></th></tr></thead><tbody>${db.shooters.slice().sort((a,b)=>detailName(a.detailId).localeCompare(detailName(b.detailId))||a.bench-b.bench).map(s=>`<tr><td>${esc(detailName(s.detailId))}</td><td class="bench">${s.bench? s.bench : "—"}</td><td>${esc(s.name)}</td><td><select onchange="updateShooterCategory('${s.id}',this.value)">${CATEGORIES.map(c=>`<option ${c===(s.category||"Custom")?"selected":""}>${c}</option>`).join("")}</select></td><td><button class="btn-danger" onclick="removeShooter('${s.id}')">Remove</button></td></tr>`).join("")}</tbody></table></div>`:'<div class="empty">No shooters yet.</div>'}
+
+
+/* BENCH DRAW */
+function saveBenchCount(v){
+  db.benchCount=Math.max(1,Math.min(100,Number(v)||1));
+  save();
+  renderBenchDraw();
+}
+function shuffleArray(arr){
+  let a=arr.slice();
+  for(let i=a.length-1;i>0;i--){
+    const j=Math.floor(Math.random()*(i+1));
+    [a[i],a[j]]=[a[j],a[i]];
+  }
+  return a;
+}
+function runBenchDraw(){
+  const benches=Math.max(1,Math.min(100,Number($("benchCount").value)||db.benchCount||10));
+  if(!db.shooters.length)return alert("Add shooters before running the bench draw.");
+  if(!confirm(`Randomly draw ${db.shooters.length} shooters across ${benches} benches per detail? This will replace their current detail and bench assignments.`))return;
+
+  db.benchCount=benches;
+  const needed=Math.ceil(db.shooters.length/benches);
+  db.details=Array.from({length:needed},(_,i)=>({id:crypto.randomUUID(),name:`Detail ${i+1}`}));
+
+  const shooterOrder=shuffleArray(db.shooters);
+  let cursor=0;
+  for(let d=0;d<needed;d++){
+    const slots=Math.min(benches,db.shooters.length-cursor);
+    const benchNumbers=shuffleArray(Array.from({length:benches},(_,i)=>i+1)).slice(0,slots);
+    for(let i=0;i<slots;i++){
+      const shooter=shooterOrder[cursor++];
+      shooter.detailId=db.details[d].id;
+      shooter.bench=benchNumbers[i];
+    }
+  }
+  save();
+  renderAll();
+  go("benchdraw");
+}
+function clearBenchDraw(){
+  if(!db.shooters.length)return;
+  if(!confirm("Clear all detail and bench assignments and put every shooter back into the Bench Draw Pool?"))return;
+  db.details=[];
+  for(const s of db.shooters){s.detailId="unassigned";s.bench=0}
+  save();renderAll();go("benchdraw");
+}
+function renderBenchDraw(){
+  const benches=Math.max(1,Number(db.benchCount)||10);
+  if($("benchCount"))$("benchCount").value=benches;
+  if($("drawShooterCount"))$("drawShooterCount").textContent=db.shooters.length;
+  if($("drawBenchCount"))$("drawBenchCount").textContent=benches;
+  if($("drawDetailCount"))$("drawDetailCount").textContent=db.shooters.length?Math.ceil(db.shooters.length/benches):0;
+  if(!$("benchDrawResult"))return;
+
+  const assigned=db.shooters.filter(s=>s.detailId&&s.detailId!=="unassigned"&&s.bench);
+  const pool=db.shooters.filter(s=>!s.detailId||s.detailId==="unassigned"||!s.bench);
+
+  let cards=db.details.map(d=>{
+    const ss=db.shooters.filter(s=>s.detailId===d.id).sort((a,b)=>Number(a.bench)-Number(b.bench));
+    return `<div class="draw-detail">
+      <h3><span>${esc(d.name)}</span><span class="pill">${ss.length}/${benches}</span></h3>
+      <div class="draw-list">
+        ${ss.map(s=>`<div class="draw-row"><div class="draw-bench">#${s.bench}</div><div><b>${esc(s.name)}</b><div class="small muted">${esc(s.category||"Custom")}</div></div><span class="pill">${esc(s.category||"Custom")}</span></div>`).join("")||'<div class="empty">No shooters</div>'}
+      </div>
+    </div>`
+  }).join("");
+
+  const poolCard=pool.length?`<div class="card section-card">
+    <h3>Bench Draw Pool <span class="pill">${pool.length}</span></h3>
+    <p class="muted">These shooters have not been drawn yet.</p>
+    <div class="tablewrap"><table><thead><tr><th>Shooter</th><th>Category</th></tr></thead><tbody>
+    ${pool.map(s=>`<tr><td>${esc(s.name)}</td><td>${esc(s.category||"Custom")}</td></tr>`).join("")}
+    </tbody></table></div>
+  </div>`:"";
+
+  $("benchDrawResult").innerHTML=poolCard+(cards?`<div class="card section-card"><div class="detail-head"><div><h2>Bench Draw Result</h2><p class="muted">${assigned.length} shooter${assigned.length===1?"":"s"} assigned.</p></div><button class="btn-primary" onclick="runBenchDraw()">🎲 Re-draw</button></div><div class="draw-detail-grid">${cards}</div></div>`:'<div class="card section-card empty">Add shooters, choose the number of benches, then run the draw.</div>');
+}
 
 /* SCORE */
 function scoreKey(discipline,cls,distance,shooterId){return `${discipline}||${cls}||${distance}||${shooterId}`}
@@ -507,7 +642,7 @@ function renderRecent(){
 }
 function populate(){
  let ds=db.details.map(d=>`<option value="${d.id}">${esc(d.name)}</option>`).join("");
- $("sDetail").innerHTML=ds||'<option value="">Add a detail first</option>';
+ $("sDetail").innerHTML='<option value="unassigned">Bench Draw Pool (unassigned)</option>'+ds;
  setOpts("sCategory",CATEGORIES);
  for(const id of ["scoreDetail","groupDetail","irbDetail","resultDetail"])setDetails(id);
  setOpts("scoreClass",SCORE_CLASSES[$("scoreDiscipline").value||"Rimfire"]);setOpts("scoreDistance",SCORE_DISTANCES[$("scoreDiscipline").value||"Rimfire"]);
@@ -517,7 +652,7 @@ function populate(){
 function updateStats(){$("subtitle") && null}
 function renderAll(){
  $("club").value=db.club||"Narrabri";$("shootName").value=db.shootName||"Narrabri Club Shoot";$("date").value=db.date||"";
- populate();renderDetails();renderShooters();renderScore();renderGroup();renderIRB();renderResults();renderRecent()
+ populate();renderDetails();renderShooters();renderBenchDraw();renderScore();renderGroup();renderIRB();renderResults();renderRecent()
 }
 function go(tab){
  document.querySelectorAll(".tab").forEach(x=>x.classList.add("hidden"));$(tab).classList.remove("hidden");
