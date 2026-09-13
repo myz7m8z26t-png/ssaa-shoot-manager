@@ -209,13 +209,13 @@ td{color:#eef5fa}
 
   <div class="quick-grid">
     <button class="quick primary" onclick="go('settings')">
-      <div class="qico">▣</div><h3>Create Shoot</h3><p>Set up a new shoot</p>
+      <div class="qico">▣</div><h3>Create Shoot</h3><p>New match starts with no shooters</p>
     </button>
     <button class="quick" onclick="go('shooters')">
       <div class="qico">👥</div><h3>Manage Shooters</h3><p>Add or edit shooters</p>
     </button>
     <button class="quick" onclick="go('score')">
-      <div class="qico">◎</div><h3>Enter Scores</h3><p>Score, Group and IRB</p>
+      <div class="qico">◎</div><h3>Enter Scores</h3><p>Rimfire, Centrefire, Group & IRB</p>
     </button>
     <button class="quick" onclick="go('results')">
       <div class="qico">▥</div><h3>View Results</h3><p>Totals and positions</p>
@@ -259,6 +259,7 @@ td{color:#eef5fa}
       <div><label>Name</label><input id="sName" placeholder="Shooter name"></div>
       <div><label>Detail</label><select id="sDetail"></select></div>
       <div><label>Bench Number</label><input id="sBench" type="number" min="1" placeholder="Auto if blank"></div>
+      <div><label>Category</label><select id="sCategory"></select></div>
     </div>
     <div class="actions"><button class="btn-primary" onclick="addShooter()">＋ Add Shooter</button></div>
   </div>
@@ -269,13 +270,13 @@ td{color:#eef5fa}
   <div class="card section-card">
     <h2>Benchrest for Score</h2>
     <div class="grid">
-      <div><label>Discipline</label><select id="scoreDiscipline" onchange="scoreDisciplineChanged()"><option>Rimfire</option><option>Centrefire</option></select></div>
-      <div><label>Class</label><select id="scoreClass" onchange="renderScore()"></select></div>
+      <div><label>Firearm / Discipline</label><select id="scoreDiscipline" onchange="scoreDisciplineChanged()"><option>Rimfire</option><option>Centrefire</option></select></div>
+      <div><label>Category</label><select id="scoreClass" onchange="populateScoreShooters()"></select></div>
       <div><label>Distance</label><select id="scoreDistance" onchange="renderScore()"></select></div>
       <div><label>Detail</label><select id="scoreDetail" onchange="populateScoreShooters()"></select></div>
       <div><label>Shooter</label><select id="scoreShooter" onchange="renderScore()"></select></div>
     </div>
-    <div class="rulebox">SSAA rule-book course: 5 targets × 5 record bulls. Enter X for an X-ring hit. Penalty points can be entered per target after the scorer has applied the rule-book procedure.</div>
+    <div class="rulebox">Rimfire and Centrefire are both available. Categories: Custom, Heavy, Light, Sporter, Juniors and Ladies. The SSAA score course remains 5 targets × 5 record bulls.</div>
   </div>
   <div id="scoreEntry"></div>
 </section>
@@ -319,24 +320,30 @@ td{color:#eef5fa}
     <div class="grid">
       <div><label>Match Type</label><select id="resultType" onchange="resultTypeChanged()"><option value="score">Benchrest for Score</option><option value="group">Group</option><option value="irb">IRB</option></select></div>
       <div id="resultDisciplineWrap"><label>Discipline</label><select id="resultDiscipline" onchange="resultDisciplineChanged()"><option>Rimfire</option><option>Centrefire</option></select></div>
-      <div id="resultClassWrap"><label>Class</label><select id="resultClass" onchange="renderResults()"></select></div>
+      <div id="resultClassWrap"><label id="resultClassLabel">Category</label><select id="resultClass" onchange="renderResults()"></select></div>
       <div id="resultDistanceWrap"><label>Distance</label><select id="resultDistance" onchange="renderResults()"></select></div>
       <div><label>Detail</label><select id="resultDetail" onchange="renderResults()"></select></div>
     </div>
   </div>
   <div id="resultsTable"></div>
+  <div class="card section-card">
+    <h3>Finish Match</h3>
+    <p class="muted">When the match is finished, this clears all shooters, details, bench numbers and scores so the next match starts empty.</p>
+    <div class="actions"><button class="btn-danger" onclick="newShoot()">Finish Match & Start New</button></div>
+  </div>
 </section>
 
 <section id="settings" class="tab hidden">
   <div class="settings-grid">
     <div class="card section-card">
       <h2>Shoot Settings</h2>
+      <div class="rulebox" style="margin-bottom:12px">Shooters belong to the current match only. When you press <b>Clear Match & Start New</b>, all shooters, details, bench numbers and results are removed.</div>
       <div class="grid">
         <div><label>Club / Venue</label><input id="club" placeholder="Narrabri"></div>
         <div><label>Shoot Name</label><input id="shootName" placeholder="Narrabri Club Shoot"></div>
         <div><label>Shoot Date</label><input id="date" type="date"></div>
       </div>
-      <div class="actions"><button class="btn-primary" onclick="saveSetup()">Save Shoot</button><button class="btn-danger" onclick="newShoot()">Start New Shoot</button></div>
+      <div class="actions"><button class="btn-primary" onclick="saveSetup()">Save Shoot</button><button class="btn-danger" onclick="newShoot()">Clear Match & Start New</button></div>
     </div>
     <div class="card section-card">
       <h2>Backup</h2>
@@ -349,9 +356,10 @@ td{color:#eef5fa}
 </main>
 
 <script>
+const CATEGORIES=["Custom","Heavy","Light","Sporter","Juniors","Ladies"];
 const SCORE_CLASSES={
-  Rimfire:[".22LR Light Rimfire Benchrest for Score",".22LR Heavy Rimfire Benchrest for Score"],
-  Centrefire:["Light Centrefire Benchrest for Score","Heavy Centrefire Benchrest for Score"]
+  Rimfire:[...CATEGORIES],
+  Centrefire:[...CATEGORIES]
 };
 const SCORE_DISTANCES={Rimfire:["50 metres","100 yards"],Centrefire:["100 yards","200 yards"]};
 const GROUP_CLASSES={
@@ -359,14 +367,14 @@ const GROUP_CLASSES={
   Centrefire:["Sporter Benchrest","Light Benchrest","Heavy Benchrest","Experimental / Unlimited Benchrest"]
 };
 const GROUP_DISTANCES={Rimfire:["50 metres","100 yards"],Centrefire:["100 yards","200 yards","300 yards"]};
-const STORAGE="narrabriSSAA_dark_v6";
-const OLD_KEYS=["narrabriSSAA_rulebook_v5","narrabriSSAA_v4","narrabriSSAA_v3","narrabriSSAA"];
+const STORAGE="narrabriSSAA_dark_v8";
+const OLD_KEYS=["narrabriSSAA_dark_v7","narrabriSSAA_dark_v6","narrabriSSAA_rulebook_v5","narrabriSSAA_v4","narrabriSSAA_v3","narrabriSSAA"];
 const $=id=>document.getElementById(id);
 
-function freshDB(){return {club:"Narrabri",shootName:"Narrabri Club Shoot",date:"",details:[],shooters:[],score:{},group:{},irb:{},irbTargets:3}}
+function freshDB(clubName="Narrabri"){return {club:clubName||"Narrabri",shootName:"Narrabri Club Shoot",date:"",details:[],shooters:[],score:{},group:{},irb:{},irbTargets:3}}
 function normalize(x){
   x.club=x.club||"Narrabri";x.shootName=x.shootName||"Narrabri Club Shoot";x.date=x.date||"";
-  x.details=Array.isArray(x.details)?x.details:[];x.shooters=Array.isArray(x.shooters)?x.shooters:[];
+  x.details=Array.isArray(x.details)?x.details:[];x.shooters=Array.isArray(x.shooters)?x.shooters:[];x.shooters=x.shooters.map(s=>({...s,category:CATEGORIES.includes(s.category)?s.category:"Custom"}));
   x.score=x.score||{};x.group=x.group||{};x.irb=x.irb||{};x.irbTargets=Number(x.irbTargets)===6?6:3;return x
 }
 function loadDB(){
@@ -375,7 +383,7 @@ function loadDB(){
     try{
       let old=JSON.parse(localStorage.getItem(key)||"null");
       if(old){
-        let n=freshDB();n.club=old.club||"Narrabri";n.shootName=old.shootName||"Narrabri Club Shoot";n.date=old.date||"";n.details=old.details||[];n.shooters=(old.shooters||[]).map(s=>({id:s.id,name:s.name,detailId:s.detailId,bench:s.bench}));
+        let n=freshDB();n.club=old.club||"Narrabri";n.shootName=old.shootName||"Narrabri Club Shoot";n.date=old.date||"";n.details=old.details||[];n.shooters=(old.shooters||[]).map(s=>({id:s.id,name:s.name,detailId:s.detailId,bench:s.bench,category:CATEGORIES.includes(s.category)?s.category:"Custom"}));
         n.score=old.score||{};n.group=old.group||{};n.irb=old.irb||{};n.irbTargets=old.irbTargets||3;return normalize(n)
       }
     }catch(e){}
@@ -391,19 +399,28 @@ function setOpts(id,vals){let e=$(id),old=e.value;e.innerHTML=vals.map(v=>`<opti
 function setDetails(id){let e=$(id),old=e.value,opts=db.details.map(d=>`<option value="${d.id}">${esc(d.name)}</option>`).join("");e.innerHTML='<option value="all">All Details</option>'+opts;e.value=[...e.options].some(o=>o.value===old)?old:"all"}
 
 function saveSetup(){db.club=$("club").value.trim()||"Narrabri";db.shootName=$("shootName").value.trim()||"Narrabri Club Shoot";db.date=$("date").value;save();alert("Shoot saved.")}
-function newShoot(){if(confirm("Start a new shoot? This clears the current shoot entries on this device.")){db=freshDB();save();renderAll();go("settings")}}
+function newShoot(){
+  const clubToKeep=db.club||"Narrabri";
+  if(!confirm("Start a new match? This will remove ALL shooters, details, bench numbers, scores, group results and IRB cards from the current match."))return;
+  db=freshDB(clubToKeep);
+  localStorage.setItem(STORAGE,JSON.stringify(db));
+  renderAll();
+  go("settings");
+  alert("New match ready. All shooters and results from the previous match have been cleared.");
+}
 
 /* DETAILS + SHOOTERS */
 function addDetail(){let name=$("newDetailName").value.trim()||`Detail ${db.details.length+1}`;db.details.push({id:crypto.randomUUID(),name});$("newDetailName").value="";save();renderAll()}
 function deleteDetail(id){if(db.shooters.some(s=>s.detailId===id))return alert("Remove or move shooters from this detail first.");db.details=db.details.filter(d=>d.id!==id);save();renderAll()}
 function nextBench(detailId){let used=db.shooters.filter(s=>s.detailId===detailId).map(s=>Number(s.bench)),n=1;while(used.includes(n))n++;return n}
-function addShooter(){let name=$("sName").value.trim(),detailId=$("sDetail").value,bench=Number($("sBench").value);if(!name||!detailId)return alert("Enter a name and choose a detail.");if(!bench)bench=nextBench(detailId);if(db.shooters.some(s=>s.detailId===detailId&&Number(s.bench)===bench))return alert("That bench is already used in this detail.");db.shooters.push({id:crypto.randomUUID(),name,detailId,bench});$("sName").value="";$("sBench").value="";save();renderAll()}
+function addShooter(){let name=$("sName").value.trim(),detailId=$("sDetail").value,bench=Number($("sBench").value),category=$("sCategory").value||"Custom";if(!name||!detailId)return alert("Enter a name and choose a detail.");if(!bench)bench=nextBench(detailId);if(db.shooters.some(s=>s.detailId===detailId&&Number(s.bench)===bench))return alert("That bench is already used in this detail.");db.shooters.push({id:crypto.randomUUID(),name,detailId,bench,category});$("sName").value="";$("sBench").value="";save();renderAll()}
 function removeShooter(id){if(!confirm("Remove this shooter?"))return;db.shooters=db.shooters.filter(s=>s.id!==id);Object.keys(db.score).filter(k=>k.endsWith("||"+id)).forEach(k=>delete db.score[k]);Object.keys(db.group).filter(k=>k.endsWith("||"+id)).forEach(k=>delete db.group[k]);delete db.irb[id];save();renderAll()}
+function updateShooterCategory(id,category){let s=db.shooters.find(x=>x.id===id);if(!s)return;s.category=category;save();renderAll()}
 function renderDetails(){
   $("detailPill").textContent=`${db.details.length} Detail${db.details.length===1?"":"s"}`;
-  $("detailList").innerHTML=db.details.length?db.details.map(d=>{let ss=db.shooters.filter(s=>s.detailId===d.id).sort((a,b)=>a.bench-b.bench);return `<div class="card section-card"><div class="detail-head"><div><h3>${esc(d.name)}</h3><span class="pill">${ss.length} shooter${ss.length===1?"":"s"}</span></div><button class="btn-danger" onclick="deleteDetail('${d.id}')">Delete</button></div><div class="tablewrap"><table><thead><tr><th>Bench</th><th>Shooter</th><th></th></tr></thead><tbody>${ss.map(s=>`<tr><td class="bench">${s.bench}</td><td>${esc(s.name)}</td><td><button class="btn-secondary" onclick="removeShooter('${s.id}')">Remove</button></td></tr>`).join("")||'<tr><td colspan="3" class="empty">No shooters.</td></tr>'}</tbody></table></div></div>`}).join(""):'<div class="card section-card empty">No details yet.</div>'
+  $("detailList").innerHTML=db.details.length?db.details.map(d=>{let ss=db.shooters.filter(s=>s.detailId===d.id).sort((a,b)=>a.bench-b.bench);return `<div class="card section-card"><div class="detail-head"><div><h3>${esc(d.name)}</h3><span class="pill">${ss.length} shooter${ss.length===1?"":"s"}</span></div><button class="btn-danger" onclick="deleteDetail('${d.id}')">Delete</button></div><div class="tablewrap"><table><thead><tr><th>Bench</th><th>Shooter</th><th>Category</th><th></th></tr></thead><tbody>${ss.map(s=>`<tr><td class="bench">${s.bench}</td><td>${esc(s.name)}</td><td>${esc(s.category||"Custom")}</td><td><button class="btn-secondary" onclick="removeShooter('${s.id}')">Remove</button></td></tr>`).join("")||'<tr><td colspan="4" class="empty">No shooters.</td></tr>'}</tbody></table></div></div>`}).join(""):'<div class="card section-card empty">No details yet.</div>'
 }
-function renderShooters(){$("shooterTable").innerHTML=db.shooters.length?`<div class="tablewrap"><table><thead><tr><th>Detail</th><th>Bench</th><th>Name</th><th></th></tr></thead><tbody>${db.shooters.slice().sort((a,b)=>detailName(a.detailId).localeCompare(detailName(b.detailId))||a.bench-b.bench).map(s=>`<tr><td>${esc(detailName(s.detailId))}</td><td class="bench">${s.bench}</td><td>${esc(s.name)}</td><td><button class="btn-danger" onclick="removeShooter('${s.id}')">Remove</button></td></tr>`).join("")}</tbody></table></div>`:'<div class="empty">No shooters yet.</div>'}
+function renderShooters(){$("shooterTable").innerHTML=db.shooters.length?`<div class="tablewrap"><table><thead><tr><th>Detail</th><th>Bench</th><th>Name</th><th>Category</th><th></th></tr></thead><tbody>${db.shooters.slice().sort((a,b)=>detailName(a.detailId).localeCompare(detailName(b.detailId))||a.bench-b.bench).map(s=>`<tr><td>${esc(detailName(s.detailId))}</td><td class="bench">${s.bench}</td><td>${esc(s.name)}</td><td><select onchange="updateShooterCategory('${s.id}',this.value)">${CATEGORIES.map(c=>`<option ${c===(s.category||"Custom")?"selected":""}>${c}</option>`).join("")}</select></td><td><button class="btn-danger" onclick="removeShooter('${s.id}')">Remove</button></td></tr>`).join("")}</tbody></table></div>`:'<div class="empty">No shooters yet.</div>'}
 
 /* SCORE */
 function scoreKey(discipline,cls,distance,shooterId){return `${discipline}||${cls}||${distance}||${shooterId}`}
@@ -418,7 +435,7 @@ function scoreParse(v){if(v==="X")return {points:10,x:1};if(v===null||v==="")ret
 function scoreStats(card){let points=0,x=0,counts={10:0,9:0,8:0,7:0,6:0},sequence=[],complete=true;for(const t of card.targets){let tp=0,tx=0,filled=0;for(const v of t.bulls){let p=scoreParse(v);sequence.push(p.points===null?-1:p.points+(p.x?.1:0));if(p.points!==null){tp+=p.points;tx+=p.x;filled++;if(p.points>=6)counts[p.points]=(counts[p.points]||0)+1}}tp=Math.max(0,tp-Number(t.penalty||0));points+=tp;x+=tx;complete=complete&&filled===5}return {points,x,counts,sequence,complete}}
 function scoreOptions(v){return ["","X","10","9","8","7","6","0"].map(x=>`<option value="${x}" ${String(v??"")===x?"selected":""}>${x||"—"}</option>`).join("")}
 function scoreDisciplineChanged(){setOpts("scoreClass",SCORE_CLASSES[$("scoreDiscipline").value]);setOpts("scoreDistance",SCORE_DISTANCES[$("scoreDiscipline").value]);populateScoreShooters()}
-function populateScoreShooters(){let detail=$("scoreDetail").value,shooters=db.shooters.filter(s=>detail==="all"||s.detailId===detail).sort((a,b)=>detailName(a.detailId).localeCompare(detailName(b.detailId))||a.bench-b.bench),e=$("scoreShooter"),old=e.value;e.innerHTML=shooters.map(s=>`<option value="${s.id}">Bench ${s.bench} — ${esc(s.name)}</option>`).join("")||'<option value="">No shooters</option>';if(shooters.some(s=>s.id===old))e.value=old;renderScore()}
+function populateScoreShooters(){let detail=$("scoreDetail").value,category=$("scoreClass").value,shooters=db.shooters.filter(s=>(detail==="all"||s.detailId===detail)&&(s.category||"Custom")===category).sort((a,b)=>detailName(a.detailId).localeCompare(detailName(b.detailId))||a.bench-b.bench),e=$("scoreShooter"),old=e.value;e.innerHTML=shooters.map(s=>`<option value="${s.id}">Bench ${s.bench} — ${esc(s.name)}</option>`).join("")||'<option value="">No shooters</option>';if(shooters.some(s=>s.id===old))e.value=old;renderScore()}
 function updateScoreBull(t,b,v){let id=$("scoreShooter").value;if(!id)return;scoreCard($("scoreDiscipline").value,$("scoreClass").value,$("scoreDistance").value,id).targets[t].bulls[b]=v===""?null:v;save();renderScore();renderResults()}
 function updateScorePenalty(t,v){let id=$("scoreShooter").value;if(!id)return;scoreCard($("scoreDiscipline").value,$("scoreClass").value,$("scoreDistance").value,id).targets[t].penalty=Math.max(0,Number(v)||0);save();renderScore();renderResults()}
 function renderScore(){
@@ -453,13 +470,13 @@ function toggleDay2(){db.irbTargets=db.irbTargets===3?6:3;save();populateIRBTarg
 function renderIRB(){let id=$("irbShooter").value;if(!id){$("irbGrid").innerHTML='<div class="empty" style="grid-column:1/-1">Add/select a shooter.</div>';$("irbTitle").textContent="";$("irbScore").textContent="";$("irbX").textContent="";$("irbSummary").innerHTML="";return}let idx=Number($("irbTarget").value||1)-1,t=irbData(id).targets[idx],st=irbTargetStats(t),m=irbMatchStats(id);$("irbTitle").textContent=`Target ${idx+1} • Day ${idx<3?1:2}`;$("irbScore").textContent=`${st.points}/250`;$("irbX").textContent=`${st.x}/25 X`;$("irbPenalty").value=t.penalty||0;$("irbGrid").innerHTML=t.bulls.map((v,i)=>`<div class="bull"><label>Bull ${i+1}</label><select onchange="updateIRBBull(${i},this.value)">${irbOptions(v)}</select></div>`).join("");$("irbSummary").innerHTML=`<div class="score-summary"><span class="bigscore">${m.total}/${db.irbTargets*250}</span><span>${m.x}/${db.irbTargets*25} X</span><span class="pill ${m.complete?"good":"warn"}">${m.complete?"Complete":"In Progress"}</span></div><div class="tablewrap"><table><thead><tr><th>Target</th><th>Score</th><th>X</th><th>Status</th></tr></thead><tbody>${m.targets.map((x,i)=>`<tr><td>${i+1}</td><td>${x.points}/250</td><td>${x.x}</td><td>${x.complete?"Complete":"In Progress"}</td></tr>`).join("")}</tbody></table></div>`}
 
 /* RESULTS */
-function resultTypeChanged(){let type=$("resultType").value,hide=type==="irb";$("resultDisciplineWrap").classList.toggle("hidden",hide);$("resultClassWrap").classList.toggle("hidden",hide);$("resultDistanceWrap").classList.toggle("hidden",hide);if(!hide)resultDisciplineChanged();else renderResults()}
+function resultTypeChanged(){let type=$("resultType").value,hide=type==="irb";$("resultDisciplineWrap").classList.toggle("hidden",hide);$("resultClassWrap").classList.toggle("hidden",hide);$("resultDistanceWrap").classList.toggle("hidden",hide);if($("resultClassLabel"))$("resultClassLabel").textContent=type==="score"?"Category":"Class";if(!hide)resultDisciplineChanged();else renderResults()}
 function resultDisciplineChanged(){let type=$("resultType").value,d=$("resultDiscipline").value;if(type==="score"){setOpts("resultClass",SCORE_CLASSES[d]);setOpts("resultDistance",["Overall",...SCORE_DISTANCES[d]])}else{setOpts("resultClass",GROUP_CLASSES[d]);setOpts("resultDistance",["Overall",...GROUP_DISTANCES[d]])}renderResults()}
 function lexCompare(a,b){for(let i=0;i<Math.max(a.length,b.length);i++){let av=a[i]??-1,bv=b[i]??-1;if(av!==bv)return bv-av}return 0}
 function renderResults(){let type=$("resultType").value;if(type==="score")renderScoreResults();else if(type==="group")renderGroupResults();else renderIRBResults()}
 function renderScoreResults(){
  let d=$("resultDiscipline").value,cls=$("resultClass").value,dist=$("resultDistance").value,detail=$("resultDetail").value,distances=dist==="Overall"?SCORE_DISTANCES[d]:[dist];
- let rows=db.shooters.filter(s=>detail==="all"||s.detailId===detail).map(s=>{let points=0,x=0,counts={10:0,9:0,8:0,7:0,6:0},seq=[],complete=true;for(const dd of distances){let st=scoreStats(scoreCard(d,cls,dd,s.id));points+=st.points;x+=st.x;complete=complete&&st.complete;seq.push(...st.sequence);Object.keys(counts).forEach(k=>counts[k]+=st.counts[k]||0)}return {s,points,x,counts,seq,complete}}).sort((a,b)=>{if(a.points!==b.points)return b.points-a.points;if(a.x!==b.x)return b.x-a.x;for(const n of [10,9,8,7,6])if(a.counts[n]!==b.counts[n])return b.counts[n]-a.counts[n];return lexCompare(a.seq,b.seq)||a.s.bench-b.s.bench});
+ let rows=db.shooters.filter(s=>(detail==="all"||s.detailId===detail)&&(s.category||"Custom")===cls).map(s=>{let points=0,x=0,counts={10:0,9:0,8:0,7:0,6:0},seq=[],complete=true;for(const dd of distances){let st=scoreStats(scoreCard(d,cls,dd,s.id));points+=st.points;x+=st.x;complete=complete&&st.complete;seq.push(...st.sequence);Object.keys(counts).forEach(k=>counts[k]+=st.counts[k]||0)}return {s,points,x,counts,seq,complete}}).sort((a,b)=>{if(a.points!==b.points)return b.points-a.points;if(a.x!==b.x)return b.x-a.x;for(const n of [10,9,8,7,6])if(a.counts[n]!==b.counts[n])return b.counts[n]-a.counts[n];return lexCompare(a.seq,b.seq)||a.s.bench-b.s.bench});
  let max=distances.length*250,maxX=distances.length*25;
  $("resultsTable").innerHTML=`<div class="card section-card"><h3>Benchrest for Score • ${esc(d)} • ${esc(cls)} • ${esc(dist)}</h3><div class="tablewrap"><table><thead><tr><th>Pos</th><th>Detail</th><th>Bench</th><th>Name</th><th>Score</th><th>X</th><th>Status</th></tr></thead><tbody>${rows.map((r,i)=>`<tr><td><b>${i+1}</b></td><td>${esc(detailName(r.s.detailId))}</td><td>${r.s.bench}</td><td>${esc(r.s.name)}</td><td><b>${r.points}/${max}</b></td><td>${r.x}/${maxX}</td><td><span class="pill ${r.complete?"good":"warn"}">${r.complete?"Complete":"In Progress"}</span></td></tr>`).join("")||'<tr><td colspan="7" class="empty">No shooters.</td></tr>'}</tbody></table></div></div>`
 }
@@ -491,6 +508,7 @@ function renderRecent(){
 function populate(){
  let ds=db.details.map(d=>`<option value="${d.id}">${esc(d.name)}</option>`).join("");
  $("sDetail").innerHTML=ds||'<option value="">Add a detail first</option>';
+ setOpts("sCategory",CATEGORIES);
  for(const id of ["scoreDetail","groupDetail","irbDetail","resultDetail"])setDetails(id);
  setOpts("scoreClass",SCORE_CLASSES[$("scoreDiscipline").value||"Rimfire"]);setOpts("scoreDistance",SCORE_DISTANCES[$("scoreDiscipline").value||"Rimfire"]);
  setOpts("groupClass",GROUP_CLASSES[$("groupDiscipline").value||"Rimfire"]);setOpts("groupDistance",GROUP_DISTANCES[$("groupDiscipline").value||"Rimfire"]);
