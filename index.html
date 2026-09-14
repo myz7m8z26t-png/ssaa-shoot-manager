@@ -355,7 +355,7 @@ td{color:#eef5fa}
       </div>
       <div><label>Detail</label><select id="groupDetail" onchange="renderGroup()"></select></div>
     </div>
-    <div class="rulebox">Choose the shooter <b>Category</b> and how many Group cards are being shot today. Only that many groups are shown and counted. The Results page recalculates the distance, overall and Grand Aggregate using the selected number of cards.</div>
+    <div class="rulebox">Choose the shooter <b>Category</b> and how many Group cards are being shot today. Only that many groups are shown and counted. The Results page calculates the <b>Total Aggregate</b> using only the number of Group cards selected for today.</div>
   </div>
   <div id="groupTable"></div>
 </section>
@@ -394,10 +394,10 @@ td{color:#eef5fa}
   <div class="card section-card">
     <h2>Results</h2>
     <div class="rulebox" style="margin-bottom:12px">
-      <b>Group Grand Aggregate (Today)</b> is calculated from the Group cards being shot today at the distance you select. If you chose 3 Group cards, only Groups 1–3 are used. Lowest aggregate wins.
+      <b>Group Total Aggregate</b> uses all Group cards selected for today. If you choose 3 cards, it uses Group 1, Group 2 and Group 3 only. The app calculates the Total Aggregate automatically. Lowest Total Aggregate wins.
     </div>
     <div class="grid">
-      <div><label>Match Type</label><select id="resultType" onchange="resultTypeChanged()"><option value="score">Benchrest for Score</option><option value="scoregrand">Score Grand Total (2 distances)</option><option value="group">Group</option><option value="grand">Group Grand Aggregate (Today)</option><option value="irb">IRB</option></select></div>
+      <div><label>Match Type</label><select id="resultType" onchange="resultTypeChanged()"><option value="score">Benchrest for Score</option><option value="scoregrand">Score Grand Total (2 distances)</option><option value="group">Group</option><option value="grand">Group Total Aggregate</option><option value="irb">IRB</option></select></div>
       <div id="resultDisciplineWrap"><label>Discipline</label><select id="resultDiscipline" onchange="resultDisciplineChanged()"><option>Rimfire</option><option>Centrefire</option></select></div>
       <div id="resultCategoryWrap" class="hidden"><label>Category</label><select id="resultCategory" onchange="renderResults()"></select></div>
       <div id="resultClassWrap"><label id="resultClassLabel">Category</label><select id="resultClass" onchange="renderResults()"></select></div>
@@ -447,8 +447,8 @@ const GROUP_CLASSES={
   Centrefire:["Sporter Benchrest","Light Benchrest","Heavy Benchrest","Experimental / Unlimited Benchrest"]
 };
 const GROUP_DISTANCES={Rimfire:["50 metres","100 yards"],Centrefire:["100 yards","200 yards","300 yards"]};
-const STORAGE="narrabriSSAA_dark_v16";
-const OLD_KEYS=["narrabriSSAA_dark_v15","narrabriSSAA_dark_v14","narrabriSSAA_dark_v13","narrabriSSAA_dark_v12","narrabriSSAA_dark_v11","narrabriSSAA_dark_v10","narrabriSSAA_dark_v9","narrabriSSAA_dark_v8","narrabriSSAA_dark_v7","narrabriSSAA_dark_v6","narrabriSSAA_rulebook_v5","narrabriSSAA_v4","narrabriSSAA_v3","narrabriSSAA"];
+const STORAGE="narrabriSSAA_dark_v17";
+const OLD_KEYS=["narrabriSSAA_dark_v16","narrabriSSAA_dark_v15","narrabriSSAA_dark_v14","narrabriSSAA_dark_v13","narrabriSSAA_dark_v12","narrabriSSAA_dark_v11","narrabriSSAA_dark_v10","narrabriSSAA_dark_v9","narrabriSSAA_dark_v8","narrabriSSAA_dark_v7","narrabriSSAA_dark_v6","narrabriSSAA_rulebook_v5","narrabriSSAA_v4","narrabriSSAA_v3","narrabriSSAA"];
 const $=id=>document.getElementById(id);
 
 function freshDB(clubName="Narrabri"){return {club:clubName||"Narrabri",shootName:"Narrabri Club Shoot",date:"",details:[],shooters:[],score:{},group:{},irb:{},scoreCardsToday:5,groupCardsToday:5,irbTargets:3,irbCardsToday:3,benchCount:10}}
@@ -820,45 +820,57 @@ function renderGrandAggregate(){
     .filter(s=>(detail==="all"||s.detailId===detail)&&(s.category||"Custom")===category)
     .map(s=>{
       const card=groupCard(discipline,cls,distance,s.id);
-      const entered=card.groups.slice(0,cardCount).filter(v=>v!==null&&v!=="").length;
+      const values=card.groups.slice(0,cardCount);
+      const entered=values.filter(v=>v!==null&&v!=="").length;
       const agg=groupAgg(distance,card,cardCount);
-      return {s,card,entered,complete:agg!==null,agg};
+      return {s,card,values,entered,complete:agg!==null,agg};
     })
     .sort((a,b)=>{
       if(a.complete!==b.complete)return a.complete?-1:1;
       if(a.complete&&b.complete){
         if(a.agg!==b.agg)return a.agg-b.agg;
-        const aSmall=Math.min(...a.card.groups.slice(0,cardCount).map(Number));
-        const bSmall=Math.min(...b.card.groups.slice(0,cardCount).map(Number));
+        const aSmall=Math.min(...a.values.map(Number));
+        const bSmall=Math.min(...b.values.map(Number));
         if(aSmall!==bSmall)return aSmall-bSmall;
       }
       return Number(a.s.bench||999)-Number(b.s.bench||999);
     });
 
+  const groupHeaders=Array.from({length:cardCount},(_,i)=>`<th>Group ${i+1}</th>`).join("");
+
   $("resultsTable").innerHTML=`<div class="card section-card">
     <div class="detail-head">
       <div>
-        <h3>Grand Aggregate • ${esc(discipline)} • ${esc(category)}</h3>
-        <p class="muted">${esc(cls)} • ${esc(distance)} • ${cardCount} Group card${cardCount===1?"":"s"} today</p>
+        <h3>Total Aggregate • ${esc(discipline)} • ${esc(category)}</h3>
+        <p class="muted">${esc(cls)} • ${esc(distance)} • ${cardCount} group${cardCount===1?"":"s"} being shot today</p>
       </div>
-      <span class="pill">${cardCount} card${cardCount===1?"":"s"}</span>
+      <span class="pill">${cardCount} group${cardCount===1?"":"s"}</span>
     </div>
+
     <div class="rulebox" style="margin:12px 0">
-      This Grand Aggregate uses only the <b>${cardCount} Group card${cardCount===1?"":"s"}</b> selected for today at <b>${esc(distance)}</b>. 
-      If you selected 3 cards, only Group 1, Group 2 and Group 3 are used. <b>Lowest aggregate wins.</b>
+      <b>Total Aggregate</b> is calculated from all ${cardCount} Group card${cardCount===1?"":"s"} selected for today.
+      ${distance==="50 metres"
+        ? `For 50 metres: the ${cardCount} group measurements are added, doubled, then divided by ${cardCount}.`
+        : distance==="100 yards"
+          ? `For 100 yards: the ${cardCount} group measurements are added and divided by ${cardCount}.`
+          : distance==="200 yards"
+            ? `For 200 yards: the ${cardCount} group measurements are added and divided by ${cardCount*2}.`
+            : `For 300 yards: the ${cardCount} group measurements are added and divided by ${cardCount*3}.`}
+      <b>Lowest Total Aggregate wins.</b>
     </div>
+
     <div class="tablewrap"><table>
-      <thead><tr><th>Pos</th><th>Detail</th><th>Bench</th><th>Name</th><th>Cards Entered</th><th>Grand Agg</th><th>Status</th></tr></thead>
+      <thead><tr><th>Pos</th><th>Detail</th><th>Bench</th><th>Name</th>${groupHeaders}<th>Total Agg</th><th>Status</th></tr></thead>
       <tbody>
       ${rows.map((r,i)=>`<tr>
         <td><b>${r.complete?i+1:"—"}</b></td>
         <td>${esc(detailName(r.s.detailId))}</td>
         <td>${r.s.bench||"—"}</td>
         <td>${esc(r.s.name)}</td>
-        <td>${r.entered}/${cardCount}</td>
+        ${r.values.map(v=>`<td>${v===null||v===""?"—":Number(v).toFixed(3)}</td>`).join("")}
         <td><b>${r.complete?r.agg.toFixed(4):"—"}</b></td>
-        <td><span class="pill ${r.complete?"good":"warn"}">${r.complete?"Complete":"In Progress"}</span></td>
-      </tr>`).join("")||'<tr><td colspan="7" class="empty">No shooters in this category.</td></tr>'}
+        <td><span class="pill ${r.complete?"good":"warn"}">${r.complete?"Complete":`${r.entered}/${cardCount} entered`}</span></td>
+      </tr>`).join("")||`<tr><td colspan="${6+cardCount}" class="empty">No shooters in this category.</td></tr>`}
       </tbody>
     </table></div>
   </div>`;
