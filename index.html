@@ -355,7 +355,7 @@ td{color:#eef5fa}
       </div>
       <div><label>Detail</label><select id="groupDetail" onchange="renderGroup()"></select></div>
     </div>
-    <div class="rulebox">Choose the shooter <b>Category</b> and how many Group cards are being shot today. Only that many groups are shown and counted. The Results page calculates the <b>Total Aggregate</b> using only the number of Group cards selected for today.</div>
+    <div class="rulebox">Choose the shooter <b>Category</b> and how many Group cards are being shot today. Only that many groups are shown and counted. The <b>Total Agg</b> is calculated as soon as every Group card selected for today has a measurement. If you choose 3 cards, Groups 1–3 make the Total Agg and Groups 4–5 are ignored.</div>
   </div>
   <div id="groupTable"></div>
 </section>
@@ -397,7 +397,7 @@ td{color:#eef5fa}
       <b>Group Total Aggregate</b> uses all Group cards selected for today. If you choose 3 cards, it uses Group 1, Group 2 and Group 3 only. The app calculates the Total Aggregate automatically. Lowest Total Aggregate wins.
     </div>
     <div class="grid">
-      <div><label>Match Type</label><select id="resultType" onchange="resultTypeChanged()"><option value="score">Benchrest for Score</option><option value="scoregrand">Score Grand Total (2 distances)</option><option value="group">Group</option><option value="grand">Group Total Aggregate</option><option value="irb">IRB</option></select></div>
+      <div><label>Match Type</label><select id="resultType" onchange="resultTypeChanged()"><option value="score">Benchrest for Score</option><option value="scoregrand">Score Grand Total (2 distances)</option><option value="group">Group</option><option value="grand">Group Total Aggregate (selected cards)</option><option value="irb">IRB</option></select></div>
       <div id="resultDisciplineWrap"><label>Discipline</label><select id="resultDiscipline" onchange="resultDisciplineChanged()"><option>Rimfire</option><option>Centrefire</option></select></div>
       <div id="resultCategoryWrap" class="hidden"><label>Category</label><select id="resultCategory" onchange="renderResults()"></select></div>
       <div id="resultClassWrap"><label id="resultClassLabel">Category</label><select id="resultClass" onchange="renderResults()"></select></div>
@@ -447,8 +447,8 @@ const GROUP_CLASSES={
   Centrefire:["Sporter Benchrest","Light Benchrest","Heavy Benchrest","Experimental / Unlimited Benchrest"]
 };
 const GROUP_DISTANCES={Rimfire:["50 metres","100 yards"],Centrefire:["100 yards","200 yards","300 yards"]};
-const STORAGE="narrabriSSAA_dark_v17";
-const OLD_KEYS=["narrabriSSAA_dark_v16","narrabriSSAA_dark_v15","narrabriSSAA_dark_v14","narrabriSSAA_dark_v13","narrabriSSAA_dark_v12","narrabriSSAA_dark_v11","narrabriSSAA_dark_v10","narrabriSSAA_dark_v9","narrabriSSAA_dark_v8","narrabriSSAA_dark_v7","narrabriSSAA_dark_v6","narrabriSSAA_rulebook_v5","narrabriSSAA_v4","narrabriSSAA_v3","narrabriSSAA"];
+const STORAGE="narrabriSSAA_dark_v18";
+const OLD_KEYS=["narrabriSSAA_dark_v17","narrabriSSAA_dark_v16","narrabriSSAA_dark_v15","narrabriSSAA_dark_v14","narrabriSSAA_dark_v13","narrabriSSAA_dark_v12","narrabriSSAA_dark_v11","narrabriSSAA_dark_v10","narrabriSSAA_dark_v9","narrabriSSAA_dark_v8","narrabriSSAA_dark_v7","narrabriSSAA_dark_v6","narrabriSSAA_rulebook_v5","narrabriSSAA_v4","narrabriSSAA_v3","narrabriSSAA"];
 const $=id=>document.getElementById(id);
 
 function freshDB(clubName="Narrabri"){return {club:clubName||"Narrabri",shootName:"Narrabri Club Shoot",date:"",details:[],shooters:[],score:{},group:{},irb:{},scoreCardsToday:5,groupCardsToday:5,irbTargets:3,irbCardsToday:3,benchCount:10}}
@@ -641,7 +641,38 @@ function renderGroup(){
   if($("groupCardsToday"))$("groupCardsToday").value=String(cardCount);
   let shotCount=cls==="Experimental / Unlimited Benchrest"?10:5;
   let shooters=db.shooters.filter(s=>(detail==="all"||s.detailId===detail)&&(s.category||"Custom")===category).sort((a,b)=>detailName(a.detailId).localeCompare(detailName(b.detailId))||a.bench-b.bench);
-  $("groupTable").innerHTML=`<div class="card section-card"><p class="muted"><b>${esc(category)}</b> • ${esc(cls)} • ${esc(distance)} • ${cardCount} card${cardCount===1?"":"s"} • ${shotCount}-shot groups</p><div class="tablewrap"><table><thead><tr><th>Detail</th><th>Bench</th><th>Shooter</th>${Array.from({length:cardCount},(_,i)=>`<th>Group ${i+1}<br><span class="small">inches / MOA penalty</span></th>`).join("")}<th>Aggregate MOA</th></tr></thead><tbody>${shooters.map(s=>{let c=groupCard(discipline,cls,distance,s.id),agg=groupAgg(distance,c,cardCount);return `<tr><td>${esc(detailName(s.detailId))}</td><td>${s.bench}</td><td>${esc(s.name)}</td>${c.groups.slice(0,cardCount).map((v,i)=>`<td><input class="groupinput" type="number" min="0" step="0.001" value="${v??""}" placeholder="Group" onchange="updateGroup('${s.id}',${i},this.value)"><input class="groupinput" type="number" min="0" step="1" value="${c.moaPenalty[i]||0}" onchange="updateGroupPenalty('${s.id}',${i},this.value)"></td>`).join("")}<td><b>${agg===null?"—":agg.toFixed(4)}</b></td></tr>`}).join("")||`<tr><td colspan="${4+cardCount}" class="empty">No shooters.</td></tr>`}</tbody></table></div></div>`
+
+  $("groupTable").innerHTML=`<div class="card section-card">
+    <div class="detail-head">
+      <div>
+        <h3>${cardCount}-Card Group Shoot</h3>
+        <p class="muted"><b>${esc(category)}</b> • ${esc(cls)} • ${esc(distance)} • ${shotCount}-shot groups</p>
+      </div>
+      <span class="pill">${cardCount} card${cardCount===1?"":"s"} count toward Total Agg</span>
+    </div>
+    <div class="rulebox" style="margin:10px 0 14px">
+      ${cardCount===1
+        ? "Only Group 1 is used for the Total Agg."
+        : `Groups 1–${cardCount} are used for the Total Agg. Any later groups are ignored for today's result.`}
+    </div>
+    <div class="tablewrap"><table><thead><tr><th>Detail</th><th>Bench</th><th>Shooter</th>${Array.from({length:cardCount},(_,i)=>`<th>Group ${i+1}<br><span class="small">inches / MOA penalty</span></th>`).join("")}<th>Total Agg</th></tr></thead><tbody>
+    ${shooters.map(s=>{
+      let c=groupCard(discipline,cls,distance,s.id);
+      let entered=c.groups.slice(0,cardCount).filter(v=>v!==null&&v!=="").length;
+      let agg=groupAgg(distance,c,cardCount);
+      return `<tr>
+        <td>${esc(detailName(s.detailId))}</td>
+        <td>${s.bench}</td>
+        <td>${esc(s.name)}</td>
+        ${c.groups.slice(0,cardCount).map((v,i)=>`<td><input class="groupinput" type="number" min="0" step="0.001" value="${v??""}" placeholder="Group" onchange="updateGroup('${s.id}',${i},this.value)"><input class="groupinput" type="number" min="0" step="1" value="${c.moaPenalty[i]||0}" onchange="updateGroupPenalty('${s.id}',${i},this.value)"></td>`).join("")}
+        <td>${agg===null
+          ? `<span class="pill warn">${entered}/${cardCount} entered</span>`
+          : `<div class="bigscore">${agg.toFixed(4)}</div><div class="small muted">${cardCount}-card Total Agg</div>`}
+        </td>
+      </tr>`
+    }).join("")||`<tr><td colspan="${4+cardCount}" class="empty">No shooters.</td></tr>`}
+    </tbody></table></div>
+  </div>`;
 }
 
 /* IRB */
@@ -841,7 +872,7 @@ function renderGrandAggregate(){
   $("resultsTable").innerHTML=`<div class="card section-card">
     <div class="detail-head">
       <div>
-        <h3>Total Aggregate • ${esc(discipline)} • ${esc(category)}</h3>
+        <h3>${cardCount}-Card Total Aggregate • ${esc(discipline)} • ${esc(category)}</h3>
         <p class="muted">${esc(cls)} • ${esc(distance)} • ${cardCount} group${cardCount===1?"":"s"} being shot today</p>
       </div>
       <span class="pill">${cardCount} group${cardCount===1?"":"s"}</span>
@@ -860,7 +891,7 @@ function renderGrandAggregate(){
     </div>
 
     <div class="tablewrap"><table>
-      <thead><tr><th>Pos</th><th>Detail</th><th>Bench</th><th>Name</th>${groupHeaders}<th>Total Agg</th><th>Status</th></tr></thead>
+      <thead><tr><th>Pos</th><th>Detail</th><th>Bench</th><th>Name</th>${groupHeaders}<th>${cardCount}-Card Total Agg</th><th>Status</th></tr></thead>
       <tbody>
       ${rows.map((r,i)=>`<tr>
         <td><b>${r.complete?i+1:"—"}</b></td>
