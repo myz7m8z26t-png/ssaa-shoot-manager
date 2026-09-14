@@ -398,7 +398,7 @@ td{color:#eef5fa}
       <b>Group Grand Aggregate</b> is separate and only uses measurements entered on the Group page.
     </div>
     <div class="grid">
-      <div><label>Match Type</label><select id="resultType" onchange="resultTypeChanged()"><option value="score">Benchrest for Score</option><option value="scoregrand">Score Grand Total (2 distances)</option><option value="group">Group</option><option value="grand">Group Grand Aggregate</option><option value="irb">IRB</option></select></div>
+      <div><label>Match Type</label><select id="resultType" onchange="resultTypeChanged()"><option value="score">Benchrest for Score</option><option value="scoregrand">Score Grand Total (2 distances)</option><option value="group">Group</option><option value="grand">Group Grand Aggregate (both distances)</option><option value="irb">IRB</option></select></div>
       <div id="resultDisciplineWrap"><label>Discipline</label><select id="resultDiscipline" onchange="resultDisciplineChanged()"><option>Rimfire</option><option>Centrefire</option></select></div>
       <div id="resultClassWrap"><label id="resultClassLabel">Category</label><select id="resultClass" onchange="renderResults()"></select></div>
       <div id="resultDistanceWrap"><label>Distance</label><select id="resultDistance" onchange="renderResults()"></select></div>
@@ -447,8 +447,8 @@ const GROUP_CLASSES={
   Centrefire:["Sporter Benchrest","Light Benchrest","Heavy Benchrest","Experimental / Unlimited Benchrest"]
 };
 const GROUP_DISTANCES={Rimfire:["50 metres","100 yards"],Centrefire:["100 yards","200 yards","300 yards"]};
-const STORAGE="narrabriSSAA_dark_v14";
-const OLD_KEYS=["narrabriSSAA_dark_v13","narrabriSSAA_dark_v12","narrabriSSAA_dark_v11","narrabriSSAA_dark_v10","narrabriSSAA_dark_v9","narrabriSSAA_dark_v8","narrabriSSAA_dark_v7","narrabriSSAA_dark_v6","narrabriSSAA_rulebook_v5","narrabriSSAA_v4","narrabriSSAA_v3","narrabriSSAA"];
+const STORAGE="narrabriSSAA_dark_v15";
+const OLD_KEYS=["narrabriSSAA_dark_v14","narrabriSSAA_dark_v13","narrabriSSAA_dark_v12","narrabriSSAA_dark_v11","narrabriSSAA_dark_v10","narrabriSSAA_dark_v9","narrabriSSAA_dark_v8","narrabriSSAA_dark_v7","narrabriSSAA_dark_v6","narrabriSSAA_rulebook_v5","narrabriSSAA_v4","narrabriSSAA_v3","narrabriSSAA"];
 const $=id=>document.getElementById(id);
 
 function freshDB(clubName="Narrabri"){return {club:clubName||"Narrabri",shootName:"Narrabri Club Shoot",date:"",details:[],shooters:[],score:{},group:{},irb:{},scoreCardsToday:5,groupCardsToday:5,irbTargets:3,irbCardsToday:3,benchCount:10}}
@@ -768,6 +768,21 @@ function renderGroupResults(){
  $("resultsTable").innerHTML=`<div class="card section-card"><h3>${dist==="Overall"?"Overall Class Aggregate":"Group"} • ${esc(d)} • ${esc(cls)} • ${esc(dist)}</h3><div class="tablewrap"><table><thead><tr><th>Pos</th><th>Detail</th><th>Bench</th><th>Name</th><th>Aggregate MOA</th><th>Status</th></tr></thead><tbody>${rows.map((r,i)=>`<tr><td><b>${r.complete?i+1:"—"}</b></td><td>${esc(detailName(r.s.detailId))}</td><td>${r.s.bench}</td><td>${esc(r.s.name)}</td><td><b>${r.agg===null?"—":r.agg.toFixed(4)}</b></td><td><span class="pill ${r.complete?"good":"warn"}">${r.complete?"Complete":"In Progress"}</span></td></tr>`).join("")||'<tr><td colspan="6" class="empty">No shooters.</td></tr>'}</tbody></table></div></div>`
 }
 
+function groupCardHasData(card,count=db.groupCardsToday||5){
+  const n=Math.max(1,Math.min(5,Number(count)||5));
+  return card.groups.slice(0,n).some(v=>v!==null&&v!=="");
+}
+
+function groupClassProgressForShooter(shooterId,discipline,cls){
+  const distances=discipline==="Rimfire"?["50 metres","100 yards"]:["100 yards","200 yards"];
+  const status=distances.map(dist=>{
+    const card=groupCard(discipline,cls,dist,shooterId);
+    const agg=groupAgg(dist,card);
+    return {dist,card,started:groupCardHasData(card),complete:agg!==null,agg};
+  });
+  return {distances,status,started:status.some(x=>x.started),complete:status.every(x=>x.complete)};
+}
+
 function groupOverallStatsForShooter(shooterId,discipline,cls){
   const distances=discipline==="Rimfire"?["50 metres","100 yards"]:["100 yards","200 yards"];
   const aggs=[];
@@ -789,7 +804,7 @@ function groupOverallStatsForShooter(shooterId,discipline,cls){
 
 function grandAggregateClassesFired(discipline){
   return GROUP_CLASSES[discipline].filter(cls =>
-    db.shooters.some(s => groupOverallStatsForShooter(s.id,discipline,cls).complete)
+    db.shooters.some(s => groupClassProgressForShooter(s.id,discipline,cls).started)
   );
 }
 
@@ -802,16 +817,18 @@ function renderGrandAggregate(){
   let rows=shooters.map(s=>{
     const perClass=firedClasses.map(cls=>({
       cls,
-      stats:groupOverallStatsForShooter(s.id,discipline,cls)
+      stats:groupOverallStatsForShooter(s.id,discipline,cls),
+      progress:groupClassProgressForShooter(s.id,discipline,cls)
     }));
+    const started=perClass.some(x=>x.progress.started);
     const complete=firedClasses.length>0 && perClass.every(x=>x.stats.complete);
     let grand=null, tieSmall=null;
     if(complete){
       grand=perClass.reduce((sum,x)=>sum+x.stats.overall,0)/perClass.length;
       tieSmall=perClass.reduce((sum,x)=>sum+x.stats.smallest,0)/perClass.length;
     }
-    return {s,perClass,complete,grand,tieSmall};
-  });
+    return {s,perClass,started,complete,grand,tieSmall};
+  }).filter(r=>r.started||firedClasses.length===0);
 
   rows.sort((a,b)=>{
     if(a.complete!==b.complete)return a.complete?-1:1;
@@ -823,19 +840,33 @@ function renderGrandAggregate(){
   });
 
   const classHeaders=firedClasses.map(c=>`<th>${esc(c)}<br><span class="small">Overall</span></th>`).join("");
-  const classList=firedClasses.length?firedClasses.join(", "):"No completed group classes yet";
+  const classList=firedClasses.length?firedClasses.join(", "):"No Group data entered yet";
+
+  const progressNotes=firedClasses.map(cls=>{
+    const dists=discipline==="Rimfire"?["50 metres","100 yards"]:["100 yards","200 yards"];
+    const completedCounts=dists.map(dist=>{
+      const done=shooters.filter(s=>groupAgg(dist,groupCard(discipline,cls,dist,s.id))!==null).length;
+      const started=shooters.filter(s=>groupCardHasData(groupCard(discipline,cls,dist,s.id))).length;
+      return `<div><b>${esc(cls)} — ${esc(dist)}:</b> ${done} complete${started>done?`, ${started-done} in progress`:""}</div>`;
+    }).join("");
+    return completedCounts;
+  }).join("");
 
   $("resultsTable").innerHTML=`<div class="card section-card">
     <div class="detail-head">
       <div>
         <h3>Grand Aggregate • ${esc(discipline)}</h3>
-        <p class="muted">Included classes: ${esc(classList)}</p>
+        <p class="muted">Started classes: ${esc(classList)}</p>
       </div>
       <span class="pill">${firedClasses.length} class${firedClasses.length===1?"":"es"}</span>
     </div>
     <div class="rulebox" style="margin:12px 0">
-      Grand Aggregate = the average of each included class's <b>overall aggregate</b>. A shooter must complete every record target in every included class to be eligible. Lowest Grand Aggregate wins.
+      ${discipline==="Rimfire"
+        ? "For a Rimfire overall/Grand Aggregate, the same shooter must complete the selected Group cards at both <b>50 metres</b> and <b>100 yards</b> in the same Group class."
+        : "For a Centrefire overall/Grand Aggregate, the same shooter must complete the selected Group cards at both <b>100 yards</b> and <b>200 yards</b> in the same Group class."}
+      The Grand Aggregate appears only after every included class is complete.
     </div>
+    ${firedClasses.length?`<div class="rulebox" style="margin:12px 0"><b>What is still needed</b><div style="margin-top:8px;line-height:1.7">${progressNotes}</div></div>`:""}
     <div class="tablewrap"><table>
       <thead><tr><th>Pos</th><th>Detail</th><th>Bench</th><th>Name</th>${classHeaders}<th>Grand Agg</th><th>Status</th></tr></thead>
       <tbody>
@@ -844,10 +875,14 @@ function renderGrandAggregate(){
         <td>${esc(detailName(r.s.detailId))}</td>
         <td>${r.s.bench||"—"}</td>
         <td>${esc(r.s.name)}</td>
-        ${r.perClass.map(x=>`<td>${x.stats.complete?x.stats.overall.toFixed(4):"—"}</td>`).join("")}
+        ${r.perClass.map(x=>{
+          if(x.stats.complete)return `<td>${x.stats.overall.toFixed(4)}</td>`;
+          const missing=x.progress.status.filter(z=>!z.complete).map(z=>z.dist).join(" + ");
+          return `<td><span class="small unassigned">Waiting: ${esc(missing)}</span></td>`;
+        }).join("")}
         <td><b>${r.complete?r.grand.toFixed(4):"—"}</b></td>
         <td><span class="pill ${r.complete?"good":"warn"}">${r.complete?"Eligible":"Incomplete"}</span></td>
-      </tr>`).join("") : `<tr><td colspan="${6+firedClasses.length}" class="empty">Enter complete Group results for at least one class first.</td></tr>`}
+      </tr>`).join("") : `<tr><td colspan="6" class="empty">No Group measurements have been entered yet. Enter Group measurements first, then come back here.</td></tr>`}
       </tbody>
     </table></div>
   </div>`;
