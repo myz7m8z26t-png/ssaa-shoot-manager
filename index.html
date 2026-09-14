@@ -322,7 +322,7 @@ td{color:#eef5fa}
       <div><label>Detail</label><select id="scoreDetail" onchange="populateScoreShooters()"></select></div>
       <div><label>Shooter</label><select id="scoreShooter" onchange="renderScore()"></select></div>
     </div>
-    <div class="rulebox">Rimfire and Centrefire are both available. Categories: Custom, Heavy, Light, Sporter, Juniors and Ladies. The SSAA score course remains 5 targets × 5 record bulls.</div>
+    <div class="rulebox">Rimfire and Centrefire are both available. Categories: Custom, Heavy, Light, Sporter, Juniors and Ladies. Complete both distances to get the Score Grand Total in Results (maximum 500 + 50X).</div>
   </div>
   <div id="scoreEntry"></div>
 </section>
@@ -332,11 +332,12 @@ td{color:#eef5fa}
     <h2>Benchrest Group</h2>
     <div class="grid">
       <div><label>Discipline</label><select id="groupDiscipline" onchange="groupDisciplineChanged()"><option>Rimfire</option><option>Centrefire</option></select></div>
+      <div><label>Category</label><select id="groupCategory" onchange="renderGroup()"></select></div>
       <div><label>Class</label><select id="groupClass" onchange="renderGroup()"></select></div>
       <div><label>Distance</label><select id="groupDistance" onchange="renderGroup()"></select></div>
       <div><label>Detail</label><select id="groupDetail" onchange="renderGroup()"></select></div>
     </div>
-    <div class="rulebox">Enter official centre-to-centre group measurements in inches. Five record groups make the distance aggregate. The Results page now also calculates the <b>Overall Class Aggregate</b> across the two match distances and a <b>Grand Aggregate</b> across all group classes fired.</div>
+    <div class="rulebox">Choose the shooter <b>Category</b> first, then enter official centre-to-centre group measurements in inches. Five record groups make the distance aggregate. The Results page also calculates the <b>Overall Class Aggregate</b> and <b>Grand Aggregate</b>.</div>
   </div>
   <div id="groupTable"></div>
 </section>
@@ -345,26 +346,41 @@ td{color:#eef5fa}
   <div class="card section-card">
     <h2>International Rimfire Benchrest (IRB)</h2>
     <div class="grid">
+      <div><label>Category</label><select id="irbCategory" onchange="populateIRBShooters()"></select></div>
       <div><label>Detail</label><select id="irbDetail" onchange="populateIRBShooters()"></select></div>
       <div><label>Shooter</label><select id="irbShooter" onchange="renderIRB()"></select></div>
-      <div><label>Target</label><select id="irbTarget" onchange="renderIRB()"></select></div>
+      <div><label>Card</label><select id="irbTarget" onchange="renderIRB()"></select></div>
+      <div><label>Cards being shot today</label>
+        <select id="irbCardsToday" onchange="setIRBCardsToday(this.value)">
+          <option value="1">1 card</option>
+          <option value="2">2 cards</option>
+          <option value="3">3 cards</option>
+          <option value="4">4 cards</option>
+          <option value="5">5 cards</option>
+          <option value="6">6 cards</option>
+        </select>
+      </div>
     </div>
-    <div class="actions"><button class="btn-secondary" onclick="previousIRB()">← Previous</button><button class="btn-secondary" onclick="nextIRB()">Next →</button><button class="btn-primary" id="day2Btn" onclick="toggleDay2()">Add Day 2</button></div>
-    <div class="rulebox">50m • 25 record rondels • 20 minutes per target. Best-edge scoring applies. X counts 10 points plus one X.</div>
+    <div class="actions"><button class="btn-secondary" onclick="previousIRB()">← Previous</button><button class="btn-secondary" onclick="nextIRB()">Next →</button></div>
+    <div class="rulebox">Choose the shooter <b>Category</b> first. 50m • 25 record rondels per card • 20 minutes per card. Best-edge scoring applies. X counts 10 points plus one X. Choose how many cards are being shot today and the totals/results adjust automatically.</div>
   </div>
   <div class="card section-card">
     <div class="score-summary"><span id="irbTitle"></span><span class="bigscore" id="irbScore"></span><span id="irbX"></span></div>
     <div class="bullgrid" id="irbGrid"></div>
     <div class="grid" style="margin-top:12px"><div><label>Penalty points</label><input id="irbPenalty" type="number" min="0" value="0" onchange="updateIRBPenalty(this.value)"></div></div>
   </div>
-  <div class="card section-card"><h3>IRB Match Summary</h3><div id="irbSummary"></div></div>
+  <div class="card section-card"><h3>IRB Day Summary</h3><div id="irbSummary"></div></div>
 </section>
 
 <section id="results" class="tab hidden">
   <div class="card section-card">
     <h2>Results</h2>
+    <div class="rulebox" style="margin-bottom:12px">
+      <b>Score Grand Total</b> uses the two Benchrest-for-Score distances and gives a maximum of <b>500 + 50X</b> for a class/category. 
+      <b>Group Grand Aggregate</b> is separate and only uses measurements entered on the Group page.
+    </div>
     <div class="grid">
-      <div><label>Match Type</label><select id="resultType" onchange="resultTypeChanged()"><option value="score">Benchrest for Score</option><option value="group">Group</option><option value="grand">Group Grand Aggregate</option><option value="irb">IRB</option></select></div>
+      <div><label>Match Type</label><select id="resultType" onchange="resultTypeChanged()"><option value="score">Benchrest for Score</option><option value="scoregrand">Score Grand Total (2 distances)</option><option value="group">Group</option><option value="grand">Group Grand Aggregate</option><option value="irb">IRB</option></select></div>
       <div id="resultDisciplineWrap"><label>Discipline</label><select id="resultDiscipline" onchange="resultDisciplineChanged()"><option>Rimfire</option><option>Centrefire</option></select></div>
       <div id="resultClassWrap"><label id="resultClassLabel">Category</label><select id="resultClass" onchange="renderResults()"></select></div>
       <div id="resultDistanceWrap"><label>Distance</label><select id="resultDistance" onchange="renderResults()"></select></div>
@@ -413,15 +429,15 @@ const GROUP_CLASSES={
   Centrefire:["Sporter Benchrest","Light Benchrest","Heavy Benchrest","Experimental / Unlimited Benchrest"]
 };
 const GROUP_DISTANCES={Rimfire:["50 metres","100 yards"],Centrefire:["100 yards","200 yards","300 yards"]};
-const STORAGE="narrabriSSAA_dark_v10";
-const OLD_KEYS=["narrabriSSAA_dark_v9","narrabriSSAA_dark_v8","narrabriSSAA_dark_v7","narrabriSSAA_dark_v6","narrabriSSAA_rulebook_v5","narrabriSSAA_v4","narrabriSSAA_v3","narrabriSSAA"];
+const STORAGE="narrabriSSAA_dark_v13";
+const OLD_KEYS=["narrabriSSAA_dark_v12","narrabriSSAA_dark_v11","narrabriSSAA_dark_v10","narrabriSSAA_dark_v9","narrabriSSAA_dark_v8","narrabriSSAA_dark_v7","narrabriSSAA_dark_v6","narrabriSSAA_rulebook_v5","narrabriSSAA_v4","narrabriSSAA_v3","narrabriSSAA"];
 const $=id=>document.getElementById(id);
 
-function freshDB(clubName="Narrabri"){return {club:clubName||"Narrabri",shootName:"Narrabri Club Shoot",date:"",details:[],shooters:[],score:{},group:{},irb:{},irbTargets:3,benchCount:10}}
+function freshDB(clubName="Narrabri"){return {club:clubName||"Narrabri",shootName:"Narrabri Club Shoot",date:"",details:[],shooters:[],score:{},group:{},irb:{},irbTargets:3,irbCardsToday:3,benchCount:10}}
 function normalize(x){
   x.club=x.club||"Narrabri";x.shootName=x.shootName||"Narrabri Club Shoot";x.date=x.date||"";
   x.details=Array.isArray(x.details)?x.details:[];x.shooters=Array.isArray(x.shooters)?x.shooters:[];x.shooters=x.shooters.map(s=>({...s,category:CATEGORIES.includes(s.category)?s.category:"Custom"}));
-  x.score=x.score||{};x.group=x.group||{};x.irb=x.irb||{};x.irbTargets=Number(x.irbTargets)===6?6:3;x.benchCount=Math.max(1,Number(x.benchCount)||10);return x
+  x.score=x.score||{};x.group=x.group||{};x.irb=x.irb||{};x.irbCardsToday=Math.max(1,Math.min(6,Number(x.irbCardsToday||x.irbTargets)||3));x.irbTargets=x.irbCardsToday;x.benchCount=Math.max(1,Number(x.benchCount)||10);return x
 }
 function loadDB(){
   try{let x=JSON.parse(localStorage.getItem(STORAGE)||"null");if(x)return normalize(x)}catch(e){}
@@ -587,7 +603,7 @@ function groupAgg(distance,c){if(c.groups.slice(0,5).some(v=>v===null||v===""))r
 function groupDisciplineChanged(){setOpts("groupClass",GROUP_CLASSES[$("groupDiscipline").value]);setOpts("groupDistance",GROUP_DISTANCES[$("groupDiscipline").value]);renderGroup()}
 function updateGroup(id,i,v){let c=groupCard($("groupDiscipline").value,$("groupClass").value,$("groupDistance").value,id);c.groups[i]=v===""?null:Number(v);save();renderGroup();renderResults()}
 function updateGroupPenalty(id,i,v){let c=groupCard($("groupDiscipline").value,$("groupClass").value,$("groupDistance").value,id);c.moaPenalty[i]=Math.max(0,Number(v)||0);save();renderGroup();renderResults()}
-function renderGroup(){let discipline=$("groupDiscipline").value,cls=$("groupClass").value,distance=$("groupDistance").value,detail=$("groupDetail").value,shotCount=cls==="Experimental / Unlimited Benchrest"?10:5,shooters=db.shooters.filter(s=>detail==="all"||s.detailId===detail).sort((a,b)=>detailName(a.detailId).localeCompare(detailName(b.detailId))||a.bench-b.bench);$("groupTable").innerHTML=`<div class="card section-card"><p class="muted"><b>${esc(cls)}</b> • ${esc(distance)} • ${shotCount}-shot groups</p><div class="tablewrap"><table><thead><tr><th>Detail</th><th>Bench</th><th>Shooter</th>${[1,2,3,4,5].map(i=>`<th>Group ${i}<br><span class="small">inches / MOA penalty</span></th>`).join("")}<th>Aggregate MOA</th></tr></thead><tbody>${shooters.map(s=>{let c=groupCard(discipline,cls,distance,s.id),agg=groupAgg(distance,c);return `<tr><td>${esc(detailName(s.detailId))}</td><td>${s.bench}</td><td>${esc(s.name)}</td>${c.groups.slice(0,5).map((v,i)=>`<td><input class="groupinput" type="number" min="0" step="0.001" value="${v??""}" placeholder="Group" onchange="updateGroup('${s.id}',${i},this.value)"><input class="groupinput" type="number" min="0" step="1" value="${c.moaPenalty[i]||0}" onchange="updateGroupPenalty('${s.id}',${i},this.value)"></td>`).join("")}<td><b>${agg===null?"—":agg.toFixed(4)}</b></td></tr>`}).join("")||'<tr><td colspan="9" class="empty">No shooters.</td></tr>'}</tbody></table></div></div>`}
+function renderGroup(){let discipline=$("groupDiscipline").value,category=$("groupCategory").value,cls=$("groupClass").value,distance=$("groupDistance").value,detail=$("groupDetail").value,shotCount=cls==="Experimental / Unlimited Benchrest"?10:5,shooters=db.shooters.filter(s=>(detail==="all"||s.detailId===detail)&&(s.category||"Custom")===category).sort((a,b)=>detailName(a.detailId).localeCompare(detailName(b.detailId))||a.bench-b.bench);$("groupTable").innerHTML=`<div class="card section-card"><p class="muted"><b>${esc(category)}</b> • ${esc(cls)} • ${esc(distance)} • ${shotCount}-shot groups</p><div class="tablewrap"><table><thead><tr><th>Detail</th><th>Bench</th><th>Shooter</th>${[1,2,3,4,5].map(i=>`<th>Group ${i}<br><span class="small">inches / MOA penalty</span></th>`).join("")}<th>Aggregate MOA</th></tr></thead><tbody>${shooters.map(s=>{let c=groupCard(discipline,cls,distance,s.id),agg=groupAgg(distance,c);return `<tr><td>${esc(detailName(s.detailId))}</td><td>${s.bench}</td><td>${esc(s.name)}</td>${c.groups.slice(0,5).map((v,i)=>`<td><input class="groupinput" type="number" min="0" step="0.001" value="${v??""}" placeholder="Group" onchange="updateGroup('${s.id}',${i},this.value)"><input class="groupinput" type="number" min="0" step="1" value="${c.moaPenalty[i]||0}" onchange="updateGroupPenalty('${s.id}',${i},this.value)"></td>`).join("")}<td><b>${agg===null?"—":agg.toFixed(4)}</b></td></tr>`}).join("")||'<tr><td colspan="9" class="empty">No shooters.</td></tr>'}</tbody></table></div></div>`}
 
 /* IRB */
 function irbData(id){if(!db.irb[id])db.irb[id]={targets:[]};let d=db.irb[id];while(d.targets.length<6)d.targets.push({bulls:Array(25).fill(null),penalty:0});for(let t of d.targets){while(t.bulls.length<25)t.bulls.push(null);t.bulls=t.bulls.slice(0,25);t.penalty=Number(t.penalty||0)}return d}
@@ -595,33 +611,46 @@ function irbParse(v){if(v==="X")return {p:10,x:1};if(v===null||v==="")return {p:
 function irbTargetStats(t){let points=0,x=0,counts={10:0,9:0,8:0,7:0,6:0,5:0,4:0,3:0},sequence=[],filled=0;for(const v of t.bulls){let q=irbParse(v);sequence.push(q.p===null?-1:q.p+(q.x?.1:0));if(q.p!==null){points+=q.p;x+=q.x;filled++;if(q.p>=3)counts[q.p]=(counts[q.p]||0)+1}}points=Math.max(0,points-Number(t.penalty||0));return {points,x,counts,sequence,complete:filled===25}}
 function irbMatchStats(id){let d=irbData(id),total=0,x=0,counts={10:0,9:0,8:0,7:0,6:0,5:0,4:0,3:0},sequence=[],complete=true,targets=[];for(let i=0;i<db.irbTargets;i++){let s=irbTargetStats(d.targets[i]);targets.push(s);total+=s.points;x+=s.x;complete=complete&&s.complete;sequence.push(...s.sequence);Object.keys(counts).forEach(k=>counts[k]+=s.counts[k]||0)}return {total,x,counts,sequence,complete,targets}}
 function irbOptions(v){return ["","X","10","9","8","7","6","5","4","3","0"].map(x=>`<option value="${x}" ${String(v??"")===x?"selected":""}>${x||"—"}</option>`).join("")}
-function populateIRBShooters(){let detail=$("irbDetail").value,shooters=db.shooters.filter(s=>detail==="all"||s.detailId===detail).sort((a,b)=>detailName(a.detailId).localeCompare(detailName(b.detailId))||a.bench-b.bench),e=$("irbShooter"),old=e.value;e.innerHTML=shooters.map(s=>`<option value="${s.id}">Bench ${s.bench} — ${esc(s.name)}</option>`).join("")||'<option value="">No shooters</option>';if(shooters.some(s=>s.id===old))e.value=old;populateIRBTargets();renderIRB()}
-function populateIRBTargets(){let e=$("irbTarget"),old=Number(e.value||1);e.innerHTML=Array.from({length:db.irbTargets},(_,i)=>`<option value="${i+1}">Target ${i+1} • Day ${i<3?1:2}</option>`).join("");e.value=String(Math.min(old,db.irbTargets));$("day2Btn").textContent=db.irbTargets===3?"Add Day 2":"Remove Day 2"}
+function populateIRBShooters(){let category=$("irbCategory").value,detail=$("irbDetail").value,shooters=db.shooters.filter(s=>(detail==="all"||s.detailId===detail)&&(s.category||"Custom")===category).sort((a,b)=>detailName(a.detailId).localeCompare(detailName(b.detailId))||a.bench-b.bench),e=$("irbShooter"),old=e.value;e.innerHTML=shooters.map(s=>`<option value="${s.id}">Bench ${s.bench} — ${esc(s.name)}</option>`).join("")||'<option value="">No shooters</option>';if(shooters.some(s=>s.id===old))e.value=old;populateIRBTargets();renderIRB()}
+function populateIRBTargets(){
+  db.irbTargets=Math.max(1,Math.min(6,Number(db.irbCardsToday||db.irbTargets)||3));
+  let e=$("irbTarget"),old=Number(e.value||1);
+  e.innerHTML=Array.from({length:db.irbTargets},(_,i)=>`<option value="${i+1}">Card ${i+1}</option>`).join("");
+  e.value=String(Math.min(old,db.irbTargets));
+  if($("irbCardsToday"))$("irbCardsToday").value=String(db.irbTargets);
+}
+function setIRBCardsToday(v){
+  db.irbCardsToday=Math.max(1,Math.min(6,Number(v)||3));
+  db.irbTargets=db.irbCardsToday;
+  save();
+  populateIRBTargets();
+  renderIRB();
+  renderResults();
+}
 function updateIRBBull(i,v){let id=$("irbShooter").value;if(!id)return;let t=irbData(id).targets[Number($("irbTarget").value)-1];t.bulls[i]=v===""?null:v;save();renderIRB();renderResults()}
 function updateIRBPenalty(v){let id=$("irbShooter").value;if(!id)return;irbData(id).targets[Number($("irbTarget").value)-1].penalty=Math.max(0,Number(v)||0);save();renderIRB();renderResults()}
 function previousIRB(){let e=$("irbTarget"),v=Number(e.value);if(v>1){e.value=String(v-1);renderIRB()}}
 function nextIRB(){let e=$("irbTarget"),v=Number(e.value);if(v<db.irbTargets){e.value=String(v+1);renderIRB()}}
-function toggleDay2(){db.irbTargets=db.irbTargets===3?6:3;save();populateIRBTargets();renderIRB();renderResults()}
-function renderIRB(){let id=$("irbShooter").value;if(!id){$("irbGrid").innerHTML='<div class="empty" style="grid-column:1/-1">Add/select a shooter.</div>';$("irbTitle").textContent="";$("irbScore").textContent="";$("irbX").textContent="";$("irbSummary").innerHTML="";return}let idx=Number($("irbTarget").value||1)-1,t=irbData(id).targets[idx],st=irbTargetStats(t),m=irbMatchStats(id);$("irbTitle").textContent=`Target ${idx+1} • Day ${idx<3?1:2}`;$("irbScore").textContent=`${st.points}/250`;$("irbX").textContent=`${st.x}/25 X`;$("irbPenalty").value=t.penalty||0;$("irbGrid").innerHTML=t.bulls.map((v,i)=>`<div class="bull"><label>Bull ${i+1}</label><select onchange="updateIRBBull(${i},this.value)">${irbOptions(v)}</select></div>`).join("");$("irbSummary").innerHTML=`<div class="score-summary"><span class="bigscore">${m.total}/${db.irbTargets*250}</span><span>${m.x}/${db.irbTargets*25} X</span><span class="pill ${m.complete?"good":"warn"}">${m.complete?"Complete":"In Progress"}</span></div><div class="tablewrap"><table><thead><tr><th>Target</th><th>Score</th><th>X</th><th>Status</th></tr></thead><tbody>${m.targets.map((x,i)=>`<tr><td>${i+1}</td><td>${x.points}/250</td><td>${x.x}</td><td>${x.complete?"Complete":"In Progress"}</td></tr>`).join("")}</tbody></table></div>`}
+function renderIRB(){let id=$("irbShooter").value;if(!id){$("irbGrid").innerHTML='<div class="empty" style="grid-column:1/-1">Add/select a shooter.</div>';$("irbTitle").textContent="";$("irbScore").textContent="";$("irbX").textContent="";$("irbSummary").innerHTML="";return}let idx=Number($("irbTarget").value||1)-1,t=irbData(id).targets[idx],st=irbTargetStats(t),m=irbMatchStats(id);$("irbTitle").textContent=`Card ${idx+1} of ${db.irbTargets}`;$("irbScore").textContent=`${st.points}/250`;$("irbX").textContent=`${st.x}/25 X`;$("irbPenalty").value=t.penalty||0;$("irbGrid").innerHTML=t.bulls.map((v,i)=>`<div class="bull"><label>Bull ${i+1}</label><select onchange="updateIRBBull(${i},this.value)">${irbOptions(v)}</select></div>`).join("");$("irbSummary").innerHTML=`<div class="score-summary"><span class="bigscore">${m.total}/${db.irbTargets*250}</span><span>${m.x}/${db.irbTargets*25} X</span><span class="pill ${m.complete?"good":"warn"}">${m.complete?"Complete":"In Progress"}</span></div><div class="tablewrap"><table><thead><tr><th>Target</th><th>Score</th><th>X</th><th>Status</th></tr></thead><tbody>${m.targets.map((x,i)=>`<tr><td>${i+1}</td><td>${x.points}/250</td><td>${x.x}</td><td>${x.complete?"Complete":"In Progress"}</td></tr>`).join("")}</tbody></table></div>`}
 
 /* RESULTS */
 function resultTypeChanged(){
   let type=$("resultType").value;
-  const isIRB=type==="irb", isGrand=type==="grand";
+  const isIRB=type==="irb", isGroupGrand=type==="grand", isScoreGrand=type==="scoregrand";
   $("resultDisciplineWrap").classList.toggle("hidden",isIRB);
-  $("resultClassWrap").classList.toggle("hidden",isIRB||isGrand);
-  $("resultDistanceWrap").classList.toggle("hidden",isIRB||isGrand);
-  if($("resultClassLabel"))$("resultClassLabel").textContent=type==="score"?"Category":"Class";
+  $("resultClassWrap").classList.toggle("hidden",isIRB||isGroupGrand);
+  $("resultDistanceWrap").classList.toggle("hidden",isIRB||isGroupGrand||isScoreGrand);
+  if($("resultClassLabel"))$("resultClassLabel").textContent=(type==="score"||isScoreGrand)?"Category":"Class";
   if(isIRB)renderResults();
-  else if(isGrand)renderGrandAggregate();
+  else if(isGroupGrand)renderGrandAggregate();
   else resultDisciplineChanged();
 }
 function resultDisciplineChanged(){
   let type=$("resultType").value,d=$("resultDiscipline").value;
   if(type==="grand"){renderGrandAggregate();return}
-  if(type==="score"){
+  if(type==="score"||type==="scoregrand"){
     setOpts("resultClass",SCORE_CLASSES[d]);
-    setOpts("resultDistance",["Overall",...SCORE_DISTANCES[d]]);
+    if(type==="score")setOpts("resultDistance",["Overall",...SCORE_DISTANCES[d]]);
   }else{
     setOpts("resultClass",GROUP_CLASSES[d]);
     setOpts("resultDistance",["Overall",...GROUP_DISTANCES[d]]);
@@ -629,13 +658,71 @@ function resultDisciplineChanged(){
   renderResults();
 }
 function lexCompare(a,b){for(let i=0;i<Math.max(a.length,b.length);i++){let av=a[i]??-1,bv=b[i]??-1;if(av!==bv)return bv-av}return 0}
-function renderResults(){let type=$("resultType").value;if(type==="score")renderScoreResults();else if(type==="group")renderGroupResults();else if(type==="grand")renderGrandAggregate();else renderIRBResults()}
+function renderResults(){let type=$("resultType").value;if(type==="score")renderScoreResults();else if(type==="scoregrand")renderScoreGrandResults();else if(type==="group")renderGroupResults();else if(type==="grand")renderGrandAggregate();else renderIRBResults()}
 function renderScoreResults(){
  let d=$("resultDiscipline").value,cls=$("resultClass").value,dist=$("resultDistance").value,detail=$("resultDetail").value,distances=dist==="Overall"?SCORE_DISTANCES[d]:[dist];
  let rows=db.shooters.filter(s=>(detail==="all"||s.detailId===detail)&&(s.category||"Custom")===cls).map(s=>{let points=0,x=0,counts={10:0,9:0,8:0,7:0,6:0},seq=[],complete=true;for(const dd of distances){let st=scoreStats(scoreCard(d,cls,dd,s.id));points+=st.points;x+=st.x;complete=complete&&st.complete;seq.push(...st.sequence);Object.keys(counts).forEach(k=>counts[k]+=st.counts[k]||0)}return {s,points,x,counts,seq,complete}}).sort((a,b)=>{if(a.points!==b.points)return b.points-a.points;if(a.x!==b.x)return b.x-a.x;for(const n of [10,9,8,7,6])if(a.counts[n]!==b.counts[n])return b.counts[n]-a.counts[n];return lexCompare(a.seq,b.seq)||a.s.bench-b.s.bench});
  let max=distances.length*250,maxX=distances.length*25;
  $("resultsTable").innerHTML=`<div class="card section-card"><h3>Benchrest for Score • ${esc(d)} • ${esc(cls)} • ${esc(dist)}</h3><div class="tablewrap"><table><thead><tr><th>Pos</th><th>Detail</th><th>Bench</th><th>Name</th><th>Score</th><th>X</th><th>Status</th></tr></thead><tbody>${rows.map((r,i)=>`<tr><td><b>${i+1}</b></td><td>${esc(detailName(r.s.detailId))}</td><td>${r.s.bench}</td><td>${esc(r.s.name)}</td><td><b>${r.points}/${max}</b></td><td>${r.x}/${maxX}</td><td><span class="pill ${r.complete?"good":"warn"}">${r.complete?"Complete":"In Progress"}</span></td></tr>`).join("")||'<tr><td colspan="7" class="empty">No shooters.</td></tr>'}</tbody></table></div></div>`
 }
+
+function renderScoreGrandResults(){
+  const discipline=$("resultDiscipline").value;
+  const category=$("resultClass").value;
+  const detail=$("resultDetail").value;
+  const distances=SCORE_DISTANCES[discipline];
+
+  let rows=db.shooters
+    .filter(s=>(detail==="all"||s.detailId===detail)&&(s.category||"Custom")===category)
+    .map(s=>{
+      const first=scoreStats(scoreCard(discipline,category,distances[0],s.id));
+      const second=scoreStats(scoreCard(discipline,category,distances[1],s.id));
+      const complete=first.complete&&second.complete;
+      const total=first.points+second.points;
+      const x=first.x+second.x;
+      const counts={10:0,9:0,8:0,7:0,6:0};
+      [first,second].forEach(st=>Object.keys(counts).forEach(k=>counts[k]+=st.counts[k]||0));
+      const sequence=[...first.sequence,...second.sequence];
+      return {s,first,second,complete,total,x,counts,sequence};
+    })
+    .sort((a,b)=>{
+      if(a.complete!==b.complete)return a.complete?-1:1;
+      if(a.total!==b.total)return b.total-a.total;
+      if(a.x!==b.x)return b.x-a.x;
+      for(const n of [10,9,8,7,6])if(a.counts[n]!==b.counts[n])return b.counts[n]-a.counts[n];
+      return lexCompare(a.sequence,b.sequence)||Number(a.s.bench||999)-Number(b.s.bench||999);
+    });
+
+  $("resultsTable").innerHTML=`<div class="card section-card">
+    <div class="detail-head">
+      <div>
+        <h3>Score Grand Total • ${esc(discipline)} • ${esc(category)}</h3>
+        <p class="muted">${esc(distances[0])} + ${esc(distances[1])}</p>
+      </div>
+      <span class="pill">Max 500 + 50X</span>
+    </div>
+    <div class="rulebox" style="margin:12px 0">
+      The SSAA Benchrest-for-Score class total is the two distance totals added together. Maximum: <b>500 points + 50X</b>. Both distances must be complete.
+    </div>
+    <div class="tablewrap"><table>
+      <thead><tr><th>Pos</th><th>Detail</th><th>Bench</th><th>Name</th><th>${esc(distances[0])}</th><th>${esc(distances[1])}</th><th>Grand Total</th><th>X</th><th>Status</th></tr></thead>
+      <tbody>
+      ${rows.map((r,i)=>`<tr>
+        <td><b>${r.complete?i+1:"—"}</b></td>
+        <td>${esc(detailName(r.s.detailId))}</td>
+        <td>${r.s.bench||"—"}</td>
+        <td>${esc(r.s.name)}</td>
+        <td>${r.first.points}/250 • ${r.first.x}X</td>
+        <td>${r.second.points}/250 • ${r.second.x}X</td>
+        <td><b>${r.complete?r.total+"/500":"—"}</b></td>
+        <td>${r.complete?r.x+"/50":"—"}</td>
+        <td><span class="pill ${r.complete?"good":"warn"}">${r.complete?"Complete":"Needs both distances"}</span></td>
+      </tr>`).join("")||'<tr><td colspan="9" class="empty">No shooters in this category.</td></tr>'}
+      </tbody>
+    </table></div>
+  </div>`;
+}
+
 function renderGroupResults(){
  let d=$("resultDiscipline").value,cls=$("resultClass").value,dist=$("resultDistance").value,detail=$("resultDetail").value,distances=dist==="Overall"?GROUP_DISTANCES[d].slice(0,2):[dist];
  let rows=db.shooters.filter(s=>detail==="all"||s.detailId===detail).map(s=>{let aggs=distances.map(dd=>groupAgg(dd,groupCard(d,cls,dd,s.id))),complete=aggs.every(x=>x!==null),agg=complete?aggs.reduce((a,b)=>a+b,0)/aggs.length:null,small=[];if(complete)for(const dd of distances)small.push(Math.min(...groupCard(d,cls,dd,s.id).groups.map(Number)));return {s,complete,agg,small}}).sort((a,b)=>{if(a.complete!==b.complete)return a.complete?-1:1;if(a.complete&&b.complete){if(a.agg!==b.agg)return a.agg-b.agg;let aa=a.small.reduce((x,y)=>x+y,0)/a.small.length,bb=b.small.reduce((x,y)=>x+y,0)/b.small.length;if(aa!==bb)return aa-bb}return a.s.bench-b.s.bench});
@@ -729,7 +816,7 @@ function renderGrandAggregate(){
 
 function renderIRBResults(){
  let detail=$("resultDetail").value,rows=db.shooters.filter(s=>detail==="all"||s.detailId===detail).map(s=>({s,...irbMatchStats(s.id)})).sort((a,b)=>{if(a.total!==b.total)return b.total-a.total;if(a.x!==b.x)return b.x-a.x;for(const n of [10,9,8,7,6,5,4,3])if(a.counts[n]!==b.counts[n])return b.counts[n]-a.counts[n];return lexCompare(a.sequence,b.sequence)||a.s.bench-b.s.bench});
- $("resultsTable").innerHTML=`<div class="card section-card"><h3>IRB • 50 metres • ${db.irbTargets} targets</h3><div class="tablewrap"><table><thead><tr><th>Pos</th><th>Detail</th><th>Bench</th><th>Name</th><th>Score</th><th>X</th><th>Status</th></tr></thead><tbody>${rows.map((r,i)=>`<tr><td><b>${i+1}</b></td><td>${esc(detailName(r.s.detailId))}</td><td>${r.s.bench}</td><td>${esc(r.s.name)}</td><td><b>${r.total}/${db.irbTargets*250}</b></td><td>${r.x}</td><td><span class="pill ${r.complete?"good":"warn"}">${r.complete?"Complete":"In Progress"}</span></td></tr>`).join("")||'<tr><td colspan="7" class="empty">No shooters.</td></tr>'}</tbody></table></div></div>`
+ $("resultsTable").innerHTML=`<div class="card section-card"><h3>IRB • 50 metres • ${db.irbTargets} card${db.irbTargets===1?"":"s"}</h3><div class="tablewrap"><table><thead><tr><th>Pos</th><th>Detail</th><th>Bench</th><th>Name</th><th>Score</th><th>X</th><th>Status</th></tr></thead><tbody>${rows.map((r,i)=>`<tr><td><b>${i+1}</b></td><td>${esc(detailName(r.s.detailId))}</td><td>${r.s.bench}</td><td>${esc(r.s.name)}</td><td><b>${r.total}/${db.irbTargets*250}</b></td><td>${r.x}</td><td><span class="pill ${r.complete?"good":"warn"}">${r.complete?"Complete":"In Progress"}</span></td></tr>`).join("")||'<tr><td colspan="7" class="empty">No shooters.</td></tr>'}</tbody></table></div></div>`
 }
 
 /* DASHBOARD + APP */
@@ -751,6 +838,8 @@ function populate(){
  let ds=db.details.map(d=>`<option value="${d.id}">${esc(d.name)}</option>`).join("");
  $("sDetail").innerHTML='<option value="unassigned">Bench Draw Pool (unassigned)</option>'+ds;
  setOpts("sCategory",CATEGORIES);
+ setOpts("groupCategory",CATEGORIES);
+ setOpts("irbCategory",CATEGORIES);
  for(const id of ["scoreDetail","groupDetail","irbDetail","resultDetail"])setDetails(id);
  setOpts("scoreClass",SCORE_CLASSES[$("scoreDiscipline").value||"Rimfire"]);setOpts("scoreDistance",SCORE_DISTANCES[$("scoreDiscipline").value||"Rimfire"]);
  setOpts("groupClass",GROUP_CLASSES[$("groupDiscipline").value||"Rimfire"]);setOpts("groupDistance",GROUP_DISTANCES[$("groupDiscipline").value||"Rimfire"]);
