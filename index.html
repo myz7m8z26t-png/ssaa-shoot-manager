@@ -184,7 +184,37 @@ td{color:#eef5fa}
   .section-card{padding:14px}.bullgrid{gap:4px}.bull{padding:4px}.bull select{font-size:14px;padding:7px 2px}
   .footer-note{flex-direction:column}
 }
-@media print{.appbar,.actions,.quick-grid,.footer-note{display:none!important}.card{box-shadow:none}}
+
+/* A4 pin-board results printing. Only the prepared results sheet prints. */
+#printResultsSheet{display:none}
+@media print{
+  @page{size:A4 portrait;margin:12mm 11mm 14mm}
+  html,body{background:#fff!important;color:#111!important;min-height:0!important;margin:0!important;padding:0!important}
+  body > :not(#printResultsSheet){display:none!important}
+  #printResultsSheet{display:block!important;width:100%!important;color:#111!important;background:#fff!important;box-shadow:none!important;font-family:Arial,Helvetica,sans-serif!important}
+  #printResultsSheet .print-head{border-bottom:2px solid #101010;padding:0 0 11px;margin-bottom:12px;break-after:avoid}
+  #printResultsSheet .print-club{text-transform:uppercase;font-weight:800;font-size:11pt;letter-spacing:1px;margin:0 0 5px}
+  #printResultsSheet .print-title{font-size:22pt;font-weight:900;line-height:1.14;letter-spacing:.1px;margin:0 0 4px}
+  #printResultsSheet .print-shoot{font-size:13pt;font-weight:700;margin:0 0 8px}
+  #printResultsSheet .print-filters{font-size:9pt;line-height:1.5;display:flex;flex-wrap:wrap;gap:2px 12px}
+  #printResultsSheet .print-filters span{display:inline-block;white-space:normal}
+  #printResultsSheet .print-filters b{font-weight:800}
+  #printResultsSheet .print-table-frame{overflow:visible!important;width:100%!important;margin-top:10px}
+  #printResultsSheet table{width:100%!important;min-width:0!important;max-width:100%!important;border-collapse:collapse!important;table-layout:auto!important;font-size:9pt!important}
+  #printResultsSheet thead{display:table-header-group}
+  #printResultsSheet tr{break-inside:avoid;page-break-inside:avoid}
+  #printResultsSheet th,#printResultsSheet td{color:#101010!important;background:#fff!important;border:1px solid #9c9c9c!important;padding:6px 4px!important;text-align:left!important;vertical-align:middle!important;white-space:normal!important;overflow-wrap:anywhere!important;word-break:normal!important;font-size:inherit!important}
+  #printResultsSheet th{font-weight:800!important;background:#efefef!important}
+  #printResultsSheet tbody tr:nth-child(even) td{background:#f8f8f8!important}
+  #printResultsSheet .pill{color:#111!important;background:transparent!important;border:0!important;border-radius:0!important;box-shadow:none!important;padding:0!important;font-size:inherit!important}
+  #printResultsSheet .bigscore{font-size:inherit!important}
+  #printResultsSheet .muted,#printResultsSheet .small{color:#333!important;font-size:inherit!important}
+  #printResultsSheet .print-footer{font-size:8pt;color:#444;margin-top:10px;padding-top:7px;border-top:1px solid #aaa;break-inside:avoid}
+  #printResultsSheet.print-wide table{font-size:7pt!important}
+  #printResultsSheet.print-wide th,#printResultsSheet.print-wide td{padding:4px 2px!important}
+  #printResultsSheet.print-wide .print-title{font-size:19pt!important}
+}
+
 </style>
 </head>
 <body>
@@ -403,6 +433,10 @@ td{color:#eef5fa}
       <div id="resultClassWrap"><label id="resultClassLabel">Category</label><select id="resultClass" onchange="renderResults()"></select></div>
       <div id="resultDistanceWrap"><label>Distance</label><select id="resultDistance" onchange="renderResults()"></select></div>
       <div><label>Detail</label><select id="resultDetail" onchange="renderResults()"></select></div>
+    </div>
+    <div class="actions" style="align-items:center">
+      <button type="button" class="btn-primary" onclick="printA4Results()">🖨️ Print Results</button>
+      <span class="muted small">Print selected results on a clean A4 pin-board sheet.</span>
     </div>
   </div>
   <div id="resultsTable"></div>
@@ -733,7 +767,7 @@ function renderScoreResults(){
  let d=$("resultDiscipline").value,cls=$("resultClass").value,dist=$("resultDistance").value,detail=$("resultDetail").value,distances=dist==="Overall"?SCORE_DISTANCES[d]:[dist];
  let rows=db.shooters.filter(s=>(detail==="all"||s.detailId===detail)&&(s.category||"Custom")===cls).map(s=>{let points=0,x=0,counts={10:0,9:0,8:0,7:0,6:0},seq=[],complete=true;for(const dd of distances){let st=scoreStats(scoreCard(d,cls,dd,s.id));points+=st.points;x+=st.x;complete=complete&&st.complete;seq.push(...st.sequence);Object.keys(counts).forEach(k=>counts[k]+=st.counts[k]||0)}return {s,points,x,counts,seq,complete}}).sort((a,b)=>{if(a.points!==b.points)return b.points-a.points;if(a.x!==b.x)return b.x-a.x;for(const n of [10,9,8,7,6])if(a.counts[n]!==b.counts[n])return b.counts[n]-a.counts[n];return lexCompare(a.seq,b.seq)||a.s.bench-b.s.bench});
  let max=distances.length*db.scoreCardsToday*50,maxX=distances.length*db.scoreCardsToday*5;
- $("resultsTable").innerHTML=`<div class="card section-card"><h3>Benchrest for Score • ${esc(d)} • ${esc(cls)} • ${esc(dist)}</h3><div class="tablewrap"><table><thead><tr><th>Pos</th><th>Detail</th><th>Bench</th><th>Name</th><th>Score</th><th>X</th><th>Status</th></tr></thead><tbody>${rows.map((r,i)=>`<tr><td><b>${i+1}</b></td><td>${esc(detailName(r.s.detailId))}</td><td>${r.s.bench}</td><td>${esc(r.s.name)}</td><td><b>${r.points}/${max}</b></td><td>${r.x}/${maxX}</td><td><span class="pill ${r.complete?"good":"warn"}">${r.complete?"Complete":"In Progress"}</span></td></tr>`).join("")||'<tr><td colspan="7" class="empty">No shooters.</td></tr>'}</tbody></table></div></div>`
+ $("resultsTable").innerHTML=`<div class="card section-card"><h3>Benchrest for Score • ${esc(d)} • ${esc(cls)} • ${esc(dist)}</h3><div class="tablewrap"><table><thead><tr><th>Pos</th><th>Detail</th><th>Bench</th><th>Name</th><th>Score</th><th>X</th><th>Status</th></tr></thead><tbody>${rows.map((r,i)=>`<tr data-shooter-id="${esc(r.s.id)}"><td><b>${i+1}</b></td><td>${esc(detailName(r.s.detailId))}</td><td>${r.s.bench}</td><td>${esc(r.s.name)}</td><td><b>${r.points}/${max}</b></td><td>${r.x}/${maxX}</td><td><span class="pill ${r.complete?"good":"warn"}">${r.complete?"Complete":"In Progress"}</span></td></tr>`).join("")||'<tr><td colspan="7" class="empty">No shooters.</td></tr>'}</tbody></table></div></div>`
 }
 
 function renderScoreGrandResults(){
@@ -777,7 +811,7 @@ function renderScoreGrandResults(){
     <div class="tablewrap"><table>
       <thead><tr><th>Pos</th><th>Detail</th><th>Bench</th><th>Name</th><th>${esc(distances[0])}</th><th>${esc(distances[1])}</th><th>Grand Total</th><th>X</th><th>Status</th></tr></thead>
       <tbody>
-      ${rows.map((r,i)=>`<tr>
+      ${rows.map((r,i)=>`<tr data-shooter-id="${esc(r.s.id)}">
         <td><b>${r.complete?i+1:"—"}</b></td>
         <td>${esc(detailName(r.s.detailId))}</td>
         <td>${r.s.bench||"—"}</td>
@@ -796,7 +830,7 @@ function renderScoreGrandResults(){
 function renderGroupResults(){
  let d=$("resultDiscipline").value,category=$("resultCategory").value,cls=$("resultClass").value,dist=$("resultDistance").value,detail=$("resultDetail").value,distances=dist==="Overall"?GROUP_DISTANCES[d].slice(0,2):[dist];
  let rows=db.shooters.filter(s=>(detail==="all"||s.detailId===detail)&&(s.category||"Custom")===category).map(s=>{let aggs=distances.map(dd=>groupAgg(dd,groupCard(d,cls,dd,s.id))),complete=aggs.every(x=>x!==null),agg=complete?aggs.reduce((a,b)=>a+b,0)/aggs.length:null,small=[];if(complete)for(const dd of distances)small.push(Math.min(...groupCard(d,cls,dd,s.id).groups.slice(0,db.groupCardsToday).map(Number)));return {s,complete,agg,small}}).sort((a,b)=>{if(a.complete!==b.complete)return a.complete?-1:1;if(a.complete&&b.complete){if(a.agg!==b.agg)return a.agg-b.agg;let aa=a.small.reduce((x,y)=>x+y,0)/a.small.length,bb=b.small.reduce((x,y)=>x+y,0)/b.small.length;if(aa!==bb)return aa-bb}return a.s.bench-b.s.bench});
- $("resultsTable").innerHTML=`<div class="card section-card"><h3>${dist==="Overall"?"Overall Class Aggregate":"Group"} • ${esc(d)} • ${esc(category)} • ${esc(cls)} • ${esc(dist)}</h3><div class="tablewrap"><table><thead><tr><th>Pos</th><th>Detail</th><th>Bench</th><th>Name</th><th>Aggregate MOA</th><th>Status</th></tr></thead><tbody>${rows.map((r,i)=>`<tr><td><b>${r.complete?i+1:"—"}</b></td><td>${esc(detailName(r.s.detailId))}</td><td>${r.s.bench}</td><td>${esc(r.s.name)}</td><td><b>${r.agg===null?"—":r.agg.toFixed(4)}</b></td><td><span class="pill ${r.complete?"good":"warn"}">${r.complete?"Complete":"In Progress"}</span></td></tr>`).join("")||'<tr><td colspan="6" class="empty">No shooters.</td></tr>'}</tbody></table></div></div>`
+ $("resultsTable").innerHTML=`<div class="card section-card"><h3>${dist==="Overall"?"Overall Class Aggregate":"Group"} • ${esc(d)} • ${esc(category)} • ${esc(cls)} • ${esc(dist)}</h3><div class="tablewrap"><table><thead><tr><th>Pos</th><th>Detail</th><th>Bench</th><th>Name</th><th>Aggregate MOA</th><th>Status</th></tr></thead><tbody>${rows.map((r,i)=>`<tr data-shooter-id="${esc(r.s.id)}"><td><b>${r.complete?i+1:"—"}</b></td><td>${esc(detailName(r.s.detailId))}</td><td>${r.s.bench}</td><td>${esc(r.s.name)}</td><td><b>${r.agg===null?"—":r.agg.toFixed(4)}</b></td><td><span class="pill ${r.complete?"good":"warn"}">${r.complete?"Complete":"In Progress"}</span></td></tr>`).join("")||'<tr><td colspan="6" class="empty">No shooters.</td></tr>'}</tbody></table></div></div>`
 }
 
 function groupCardHasData(card,count=db.groupCardsToday||5){
@@ -893,7 +927,7 @@ function renderGrandAggregate(){
     <div class="tablewrap"><table>
       <thead><tr><th>Pos</th><th>Detail</th><th>Bench</th><th>Name</th>${groupHeaders}<th>${cardCount}-Card Total Agg</th><th>Status</th></tr></thead>
       <tbody>
-      ${rows.map((r,i)=>`<tr>
+      ${rows.map((r,i)=>`<tr data-shooter-id="${esc(r.s.id)}">
         <td><b>${r.complete?i+1:"—"}</b></td>
         <td>${esc(detailName(r.s.detailId))}</td>
         <td>${r.s.bench||"—"}</td>
@@ -909,7 +943,7 @@ function renderGrandAggregate(){
 
 function renderIRBResults(){
  let category=$("resultCategory").value,detail=$("resultDetail").value,rows=db.shooters.filter(s=>(detail==="all"||s.detailId===detail)&&(s.category||"Custom")===category).map(s=>({s,...irbMatchStats(s.id)})).sort((a,b)=>{if(a.total!==b.total)return b.total-a.total;if(a.x!==b.x)return b.x-a.x;for(const n of [10,9,8,7,6,5,4,3])if(a.counts[n]!==b.counts[n])return b.counts[n]-a.counts[n];return lexCompare(a.sequence,b.sequence)||a.s.bench-b.s.bench});
- $("resultsTable").innerHTML=`<div class="card section-card"><h3>IRB • ${esc(category)} • 50 metres • ${db.irbTargets} card${db.irbTargets===1?"":"s"}</h3><div class="tablewrap"><table><thead><tr><th>Pos</th><th>Detail</th><th>Bench</th><th>Name</th><th>Score</th><th>X</th><th>Status</th></tr></thead><tbody>${rows.map((r,i)=>`<tr><td><b>${i+1}</b></td><td>${esc(detailName(r.s.detailId))}</td><td>${r.s.bench}</td><td>${esc(r.s.name)}</td><td><b>${r.total}/${db.irbTargets*250}</b></td><td>${r.x}</td><td><span class="pill ${r.complete?"good":"warn"}">${r.complete?"Complete":"In Progress"}</span></td></tr>`).join("")||'<tr><td colspan="7" class="empty">No shooters.</td></tr>'}</tbody></table></div></div>`
+ $("resultsTable").innerHTML=`<div class="card section-card"><h3>IRB • ${esc(category)} • 50 metres • ${db.irbTargets} card${db.irbTargets===1?"":"s"}</h3><div class="tablewrap"><table><thead><tr><th>Pos</th><th>Detail</th><th>Bench</th><th>Name</th><th>Score</th><th>X</th><th>Status</th></tr></thead><tbody>${rows.map((r,i)=>`<tr data-shooter-id="${esc(r.s.id)}"><td><b>${i+1}</b></td><td>${esc(detailName(r.s.detailId))}</td><td>${r.s.bench}</td><td>${esc(r.s.name)}</td><td><b>${r.total}/${db.irbTargets*250}</b></td><td>${r.x}</td><td><span class="pill ${r.complete?"good":"warn"}">${r.complete?"Complete":"In Progress"}</span></td></tr>`).join("")||'<tr><td colspan="7" class="empty">No shooters.</td></tr>'}</tbody></table></div></div>`
 }
 
 /* DASHBOARD + APP */
@@ -953,10 +987,344 @@ function go(tab){
 }
 document.querySelectorAll(".topnav button").forEach(b=>b.onclick=()=>go(b.dataset.tab));
 
+
+/* PRINT RESULTS: A4, clean ink-friendly pin-board layout, based on current Results selection. */
+function printA4Results(){
+  // Refresh displayed calculations just before taking the printable snapshot.
+  renderResults();
+  const resultsTable=$('resultsTable');
+  const table=resultsTable&&resultsTable.querySelector('table');
+  if(!table || !db.shooters.length || !table.querySelector('tbody tr')){
+    alert('There are no shoot results to print yet. Add shooters and enter results first.');
+    return;
+  }
+
+  let sheet=$('printResultsSheet');
+  if(!sheet){
+    sheet=document.createElement('section');
+    sheet.id='printResultsSheet';
+    sheet.setAttribute('aria-label','Printable shoot results');
+    document.body.appendChild(sheet);
+  }
+  sheet.replaceChildren();
+  const cols=table.querySelectorAll('thead tr:first-child th').length;
+  sheet.classList.toggle('print-wide',cols>8);
+
+  const header=document.createElement('div');
+  header.className='print-head';
+  const makeLine=(tag,cls,value)=>{
+    const item=document.createElement(tag);
+    item.className=cls;
+    item.textContent=value;
+    header.appendChild(item);
+    return item;
+  };
+  makeLine('p','print-club',db.club||'Narrabri SSAA');
+  makeLine('h1','print-title','SHOOT RESULTS');
+  makeLine('p','print-shoot',db.shootName||'Club Shoot');
+
+  const filters=document.createElement('div');
+  filters.className='print-filters';
+  const addFilter=(label,value)=>{
+    if(!value)return;
+    const wrap=document.createElement('span');
+    const bold=document.createElement('b');
+    bold.textContent=label+': ';
+    wrap.appendChild(bold);
+    wrap.appendChild(document.createTextNode(value));
+    filters.appendChild(wrap);
+  };
+  const selected=(id)=>{
+    const control=$(id);
+    if(!control)return '';
+    return control.options?.[control.selectedIndex]?.textContent?.trim()||control.value;
+  };
+  const type=$('resultType').value;
+  const groupMode=type==='group'||type==='grand';
+  addFilter('Date',db.date ? new Date(db.date+'T12:00:00').toLocaleDateString('en-AU',{day:'numeric',month:'long',year:'numeric'}) : 'Not set');
+  addFilter('Match',selected('resultType'));
+  if(type!=='irb')addFilter('Discipline',selected('resultDiscipline'));
+  addFilter('Category',selected(groupMode||type==='irb'?'resultCategory':'resultClass'));
+  if(groupMode)addFilter('Class',selected('resultClass'));
+  if(type!=='irb'&&type!=='scoregrand')addFilter('Distance',selected('resultDistance'));
+  addFilter('Detail',selected('resultDetail'));
+  header.appendChild(filters);
+  sheet.appendChild(header);
+
+  const frame=document.createElement('div');
+  frame.className='print-table-frame';
+  const cleanTable=table.cloneNode(true);
+  cleanTable.removeAttribute('style');
+  cleanTable.querySelectorAll('button,input,select').forEach(el=>el.remove());
+  frame.appendChild(cleanTable);
+  sheet.appendChild(frame);
+
+  const footer=document.createElement('p');
+  footer.className='print-footer';
+  footer.textContent='Results reflect the scores recorded at the time of printing. In-progress entries are marked in the results table.';
+  sheet.appendChild(footer);
+  window.print();
+}
+
 function exportData(){let blob=new Blob([JSON.stringify(db,null,2)],{type:"application/json"}),a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download="Narrabri-SSAA-shoot-data.json";a.click();setTimeout(()=>URL.revokeObjectURL(a.href),1000)}
 function importData(input){let f=input.files[0];if(!f)return;let r=new FileReader();r.onload=()=>{try{db=normalize(JSON.parse(r.result));save();renderAll();alert("Shoot data imported.")}catch(e){alert("Invalid shoot data file.")}};r.readAsText(f)}
 go("home");
 </script>
-<script src="./ssaa-shooters-update.js"></script>
+<script>
+/* SSAA Shoot Manager: shooter details and calculated Group / Score / IRB aggregates.
+ * Incorporated directly in index.html: only one file needs uploading.
+ * All results are derived from the original scoring functions and saved scores.
+ */
+(function () {
+  'use strict';
+  if (typeof db === 'undefined' || typeof renderShooters !== 'function' ||
+      typeof scoreStats !== 'function' || typeof groupAgg !== 'function' ||
+      typeof irbMatchStats !== 'function') return;
+  if (document.getElementById('sShooterNumber')) return;
+
+  const mount = document.getElementById('shooterTable');
+  const addGrid = document.querySelector('#shooters .card.section-card .grid');
+  if (!mount || !addGrid) return;
+
+  function upgrade(data) {
+    if (!Array.isArray(data.shooters)) data.shooters = [];
+    const used = new Set();
+    for (const shooter of data.shooters) {
+      let n = Number(shooter.shooterNumber);
+      if (!Number.isSafeInteger(n) || n < 1 || used.has(n)) {
+        n = 1;
+        while (used.has(n)) n++;
+      }
+      shooter.shooterNumber = n;
+      used.add(n);
+      shooter.handedness = ['Left', 'Right'].includes(shooter.handedness) ? shooter.handedness : '';
+    }
+    return data;
+  }
+  const originalNormalize = normalize;
+  normalize = function(data){ return upgrade(originalNormalize(data)); };
+  upgrade(db);
+  // Existing local-storage score records and shoot setup are left untouched.
+
+  function nextNumber() {
+    let n = 1;
+    while (db.shooters.some(s => s.shooterNumber === n)) n++;
+    return n;
+  }
+
+  addGrid.insertAdjacentHTML('beforeend', `
+    <div><label for="sShooterNumber">Shooter Number</label><input id="sShooterNumber" type="number" min="1" step="1" placeholder="Automatically assigned"></div>
+    <div><label for="sHandedness">Shooting Hand</label><select id="sHandedness"><option value="">Not specified</option><option value="Right">Right-handed</option><option value="Left">Left-handed</option></select></div>`);
+
+  const chooser = document.createElement('div');
+  chooser.className = 'card section-card';
+  chooser.innerHTML = `
+    <h3>Automatic Agg &amp; Grand Agg</h3>
+    <p class="muted small" id="shooterAggHelp">Values are calculated from entered scores. Complete the required cards to see the result.</p>
+    <div class="grid">
+      <div><label for="shooterAggMode">Match Type</label><select id="shooterAggMode"><option value="group">Group</option><option value="score">Score</option><option value="irb">IRB</option></select></div>
+      <div id="shooterAggDisciplineWrap"><label for="shooterAggDiscipline">Discipline</label><select id="shooterAggDiscipline"></select></div>
+      <div id="shooterAggClassWrap"><label for="shooterAggClass" id="shooterAggClassLabel">Class</label><select id="shooterAggClass"></select></div>
+      <div id="shooterAggDistanceWrap"><label for="shooterAggDistance">Agg Distance</label><select id="shooterAggDistance"></select></div>
+    </div>`;
+  mount.before(chooser);
+  const modeEl = document.getElementById('shooterAggMode');
+  const disciplineEl = document.getElementById('shooterAggDiscipline');
+  const clsEl = document.getElementById('shooterAggClass');
+  const distanceEl = document.getElementById('shooterAggDistance');
+  const helpEl = document.getElementById('shooterAggHelp');
+  let manualMode = false;
+
+  function selectOptions(el, arr, preferred) {
+    el.innerHTML = arr.map(v => '<option value="' + esc(v) + '">' + esc(v) + '</option>').join('');
+    el.value = arr.includes(preferred) ? preferred : arr[0] || '';
+  }
+  function standardDistances(discipline) {
+    return discipline === 'Rimfire' ? ['50 metres','100 yards'] : ['100 yards','200 yards'];
+  }
+  function detectScores(){
+    for(const [key, value] of Object.entries(db.group)) {
+      if(value?.groups?.some(v=>v !== null && v !== '')){
+        const [discipline,cls,distance] = key.split('||');
+        if(GROUP_CLASSES[discipline]?.includes(cls) && GROUP_DISTANCES[discipline]?.includes(distance)) return {mode:'group',discipline,cls,distance};
+      }
+    }
+    for(const [key, value] of Object.entries(db.score)) {
+      if(value?.targets?.some(t=>t.bulls?.some(v=>v !== null && v !== ''))){
+        const [discipline,cls,distance] = key.split('||');
+        if(SCORE_CLASSES[discipline]?.includes(cls) && SCORE_DISTANCES[discipline]?.includes(distance)) return {mode:'score',discipline,cls,distance};
+      }
+    }
+    for(const value of Object.values(db.irb)) {
+      if(value?.targets?.some(t=>t.bulls?.some(v=>v !== null && v !== ''))) return {mode:'irb'};
+    }
+    return {mode:'group',discipline:'Rimfire',cls:GROUP_CLASSES.Rimfire[0],distance:'50 metres'};
+  }
+  function syncControls(preferred={}){
+    const mode = modeEl.value;
+    const irb = mode === 'irb';
+    document.getElementById('shooterAggDisciplineWrap').classList.toggle('hidden', irb);
+    document.getElementById('shooterAggClassWrap').classList.toggle('hidden', irb);
+    document.getElementById('shooterAggDistanceWrap').classList.toggle('hidden', irb);
+    if(!irb){
+      selectOptions(disciplineEl, ['Rimfire','Centrefire'], preferred.discipline || disciplineEl.value);
+      const classes = mode === 'group' ? GROUP_CLASSES[disciplineEl.value] : SCORE_CLASSES[disciplineEl.value];
+      const distances = mode === 'group' ? GROUP_DISTANCES[disciplineEl.value] : SCORE_DISTANCES[disciplineEl.value];
+      selectOptions(clsEl, classes, preferred.cls || clsEl.value);
+      selectOptions(distanceEl, distances, preferred.distance || distanceEl.value);
+      document.getElementById('shooterAggClassLabel').textContent = mode === 'group' ? 'Group Class' : 'Category';
+    }
+    helpEl.textContent = mode==='group'
+      ? 'Group Agg = normalised MOA at the selected distance. Grand Agg = mean of the completed Aggs at the two standard distances for this class. Lower wins.'
+      : mode==='score'
+      ? 'Score Agg = points and X count at the selected distance. Grand Agg = points and X counts added across both standard distances. Higher wins.'
+      : 'IRB Agg = average points per completed match card (out of 250). Grand Agg = total match points across all selected IRB cards, with X count. This is a match summary, not a two-distance Grand Aggregate. Higher wins.';
+  }
+  const detected=detectScores();
+  modeEl.value=detected.mode;
+  syncControls(detected);
+  modeEl.addEventListener('change', ()=>{manualMode=true;syncControls();renderShooters();});
+  disciplineEl.addEventListener('change', ()=>{manualMode=true;syncControls();renderShooters();});
+  clsEl.addEventListener('change', ()=>{manualMode=true;renderShooters();});
+  distanceEl.addEventListener('change', ()=>{manualMode=true;renderShooters();});
+
+  const style = document.createElement('style');
+  style.textContent = `#shooterTable table{min-width:1130px}#shooterTable .shooter-inline{min-width:105px;width:125px;padding:8px 10px}#shooterTable select.shooter-inline{min-width:145px;width:150px}#shooterTable .auto-agg{white-space:nowrap;font-variant-numeric:tabular-nums}`;
+  document.head.append(style);
+
+  addShooter = function(){
+    const name = document.getElementById('sName').value.trim();
+    const detailId = document.getElementById('sDetail').value || 'unassigned';
+    let bench = Number(document.getElementById('sBench').value);
+    const category = document.getElementById('sCategory').value || 'Custom';
+    const text = document.getElementById('sShooterNumber').value.trim();
+    const shooterNumber = text === '' ? nextNumber() : Number(text);
+    const handedness = document.getElementById('sHandedness').value;
+    if(!name) return alert('Enter a shooter name.');
+    if(!Number.isSafeInteger(shooterNumber) || shooterNumber < 1) return alert('Shooter number must be a positive whole number.');
+    if(db.shooters.some(s => s.shooterNumber === shooterNumber)) return alert('That shooter number is already used.');
+    if(detailId === 'unassigned') bench=0;
+    else{
+      if(!bench) bench = nextBench(detailId);
+      if(db.shooters.some(s => s.detailId === detailId && Number(s.bench) === bench)) return alert('That bench is already used in this detail.');
+    }
+    db.shooters.push({id:crypto.randomUUID(),name,detailId,bench,category,shooterNumber,handedness});
+    ['sName','sBench','sShooterNumber'].forEach(id=>document.getElementById(id).value='');
+    document.getElementById('sHandedness').value='';
+    save();renderAll();
+  };
+  window.ssaaUpdateShooterNumber=function(id,v){
+    const sh=db.shooters.find(s=>s.id===id);if(!sh)return;
+    const n=Number(v);
+    if(!String(v).trim()||!Number.isSafeInteger(n)||n<1||db.shooters.some(s=>s.id!==id&&s.shooterNumber===n)){
+      alert('Enter a unique positive whole shooter number.');renderShooters();return;
+    }
+    sh.shooterNumber=n;save();renderShooters();
+  };
+  window.ssaaUpdateShooterHand=function(id,v){
+    const sh=db.shooters.find(s=>s.id===id);if(!sh)return;
+    sh.handedness=['Left','Right'].includes(v)?v:'';save();
+  };
+
+  function readGroup(sh,discipline,cls,distance){
+    const card=db.group[groupKey(discipline,cls,distance,sh.id)];
+    if(!card || !Array.isArray(card.groups)) return null;
+    return groupAgg(distance,card,db.groupCardsToday);
+  }
+  function readScore(sh,discipline,cls,distance){
+    const card=db.score[scoreKey(discipline,cls,distance,sh.id)];
+    if(!card || !Array.isArray(card.targets)) return null;
+    const stats=scoreStats(card,db.scoreCardsToday);
+    return stats.complete?stats:null;
+  }
+  function calcAggregates(sh,opts){
+    const {mode,discipline,cls,distance}=opts;
+    if(mode==='group'){
+      const agg=readGroup(sh,discipline,cls,distance);
+      const parts=standardDistances(discipline).map(d=>readGroup(sh,discipline,cls,d));
+      const grand=parts.every(v=>v!==null)?parts.reduce((a,b)=>a+b,0)/parts.length:null;
+      return {agg:agg===null?null:agg.toFixed(4), grand:grand===null?null:grand.toFixed(4)};
+    }
+    if(mode==='score'){
+      const agg=readScore(sh,discipline,cls,distance);
+      const parts=standardDistances(discipline).map(d=>readScore(sh,discipline,cls,d));
+      const complete=parts.every(v=>v!==null);
+      const scoreText=(points,x,max)=>points+'/'+max+' • '+x+'X';
+      const grand=complete?scoreText(parts.reduce((a,v)=>a+v.points,0),parts.reduce((a,v)=>a+v.x,0),db.scoreCardsToday*100):null;
+      return {agg:agg?scoreText(agg.points,agg.x,db.scoreCardsToday*50):null,grand};
+    }
+    const raw=db.irb[sh.id];
+    if(!raw || !raw.targets?.length) return {agg:null,grand:null};
+    const count=Math.max(1,Math.min(6,Number(db.irbTargets)||3));
+    if(!raw.targets.slice(0,count).every(t=>Array.isArray(t.bulls))) return {agg:null,grand:null};
+    const stats=irbMatchStats(sh.id);
+    if(!stats.complete) return {agg:null,grand:null};
+    return {agg:(stats.total/count).toFixed(2)+'/250',grand:stats.total+'/'+(count*250)+' • '+stats.x+'X'};
+  }
+  window.ssaaCalcAggregates=calcAggregates; // allows testing and reuse by results printer
+
+  const fmt=v=>v===null?'<span class="muted small">Pending</span>':'<b class="auto-agg">'+esc(v)+'</b>';
+  renderShooters=function(){
+    if(!manualMode){
+      const scored=detectScores();
+      modeEl.value=scored.mode;
+      syncControls(scored);
+    }
+    const opts={mode:modeEl.value,discipline:disciplineEl.value,cls:clsEl.value,distance:distanceEl.value};
+    if(!db.shooters.length){mount.innerHTML='<div class="empty">No shooters yet.</div>';return;}
+    const rows=db.shooters.slice().sort((a,b)=>detailName(a.detailId).localeCompare(detailName(b.detailId))||a.bench-b.bench).map(sh=>{
+      const id=esc(sh.id), name=esc(sh.name);
+      const categories=CATEGORIES.map(c=>'<option'+(c===(sh.category||'Custom')?' selected':'')+'>'+esc(c)+'</option>').join('');
+      const hands=['<option value=""'+(!sh.handedness?' selected':'')+'>Not specified</option>',
+        '<option value="Right"'+(sh.handedness==='Right'?' selected':'')+'>Right-handed</option>',
+        '<option value="Left"'+(sh.handedness==='Left'?' selected':'')+'>Left-handed</option>'].join('');
+      const a=calcAggregates(sh,opts);
+      return `<tr><td><input class="shooter-inline" aria-label="Shooter number for ${name}" type="number" min="1" step="1" value="${esc(sh.shooterNumber)}" data-id="${id}" onchange="ssaaUpdateShooterNumber(this.dataset.id,this.value)"></td>
+        <td>${esc(detailName(sh.detailId))}</td><td class="bench">${sh.bench||'—'}</td><td>${name}</td>
+        <td><select class="shooter-inline" aria-label="Shooting hand for ${name}" data-id="${id}" onchange="ssaaUpdateShooterHand(this.dataset.id,this.value)">${hands}</select></td>
+        <td><select class="shooter-inline" aria-label="Category for ${name}" data-id="${id}" onchange="updateShooterCategory(this.dataset.id,this.value)">${categories}</select></td>
+        <td>${fmt(a.agg)}</td><td>${fmt(a.grand)}</td>
+        <td><button class="btn-danger" data-id="${id}" onclick="removeShooter(this.dataset.id)">Remove</button></td></tr>`;
+    }).join('');
+    mount.innerHTML='<div class="tablewrap"><table><thead><tr><th>Shooter No.</th><th>Detail</th><th>Bench</th><th>Name</th><th>Hand</th><th>Category</th><th>Agg (auto)</th><th>Grand Agg (auto)</th><th></th></tr></thead><tbody>'+rows+'</tbody></table></div>';
+  };
+
+  // Every results row retains the shooter's ID in the base Results renderer.
+  // Add auto aggregates to the same table that is printed on the A4 sheet.
+  const originalRenderResults=renderResults;
+  renderResults=function(){
+    originalRenderResults();
+    const table=document.querySelector('#resultsTable table');
+    if(!table) return;
+    const type=document.getElementById('resultType').value;
+    const discipline=document.getElementById('resultDiscipline').value;
+    const cls=document.getElementById('resultClass').value;
+    const dist=document.getElementById('resultDistance').value;
+    const opts={
+      mode:type==='irb'?'irb':(type==='group'||type==='grand'?'group':'score'),
+      discipline,cls,distance:dist==='Overall'||type==='scoregrand'?standardDistances(discipline)[0]:dist
+    };
+    const thead=table.querySelector('thead tr');
+    if(!thead) return;
+    thead.insertAdjacentHTML('beforeend','<th>Agg (auto)</th><th>Grand Agg (auto)</th>');
+    table.querySelectorAll('tbody tr').forEach(tr=>{
+      const sh=db.shooters.find(s=>s.id===tr.dataset.shooterId);
+      if(sh){
+        // Result type's category and class selectors match the original results view.
+        const values=calcAggregates(sh,opts);
+        tr.insertAdjacentHTML('beforeend','<td>'+fmt(values.agg)+'</td><td>'+fmt(values.grand)+'</td>');
+      }else{
+        const cell=tr.querySelector('td[colspan]');
+        if(cell) cell.colSpan+=2;
+      }
+    });
+    table.closest('.tablewrap')?.classList.add('ssaa-agg-results');
+  };
+
+  renderShooters();
+  renderResults();
+})();
+
+</script>
 </body>
 </html>
